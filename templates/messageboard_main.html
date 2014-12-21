@@ -1,0 +1,193 @@
+<!--[if IE]>
+<!DOCTYPE html>
+<![endif]-->
+<link href="{{STATIC_URL}}bootstrap.min.css" rel="stylesheet" media="screen">
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}style.css" />
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.js"></script>
+<head>
+<script type="text/javascript">
+var new_choices = 3;
+var menu_displayed = 0;
+var post_index = 0;
+function DisplayChoices()
+{
+  if(new_choices == 3){
+    document.getElementById("choices").innerHTML="choice 1: <br><textarea name=\'choice_1\' rows=1  style=\"width:400px\" id=\"choice_1\"></textarea><br>choice 2: <br><textarea name=\'choice_2\' rows=1 style=\"width:400px\" id=\"choice_2\"></textarea><br>choice 3: <br><textarea name=\'choice_3\' rows=1 style=\"width:400px\" id=\"choice_3\"></textarea><br>";
+    document.getElementById("poll_button").innerHTML="Add Choice";
+  }
+  else {
+    var newdiv = document.createElement('div');
+    newdiv.innerHTML = "choice "+new_choices+":<br><textarea name=\'choice_"+new_choices+"\' rows=1 cols=70 id=\"choice_"+new_choices+"\"></textarea><br>";
+    document.getElementById("choices").appendChild(newdiv);
+  }
+  new_choices++;
+}
+function DisplayMenu() {
+  if(menu_displayed == 0) {
+    document.getElementById("menu").style.display = 'block';
+    menu_displayed = 1;
+  }
+  else {
+    document.getElementById("menu").style.display = 'none';
+    menu_displayed = 0;
+  }
+}  
+function GetPostIndex(){
+  document.write("<div id="+post_index+"></div>");
+  post_index += 1;
+}
+</script>
+</head>
+
+<!--
+Old settings menu, must integrate into bootstrap hdr
+<div style="text-align:right" class ="nav">
+    <a onclick="DisplayMenu()" href="javascript:void(0);"><h3>{{ username }}</h3></a>
+    <ul id="menu" Class = "menu">
+      <script>
+        if({{ index }} != 0) {
+          document.write(" <li><a href=\"/home/\">Main</a></li>");
+        }
+      </script>
+      <li><a href="{{ username }}/account_settings">Account Settings</a></li>
+      <li><a href="/logout/">Log Out</a></li>
+    </ul>
+    <br>
+</div>
+-->
+<body>
+   <!-- from bootstrap-->
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="#">StatShark</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+              <li class="active"><a href="/">Home</a></li>
+              <li><a href="#about">Blog</a></li>
+              <li><a href="/forum/">Forum</a></li>
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Settings <b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li><a href="#">Action</a></li>
+                  <li><a href="#">Another action</a></li>
+                  <li><a href="#">Something else here</a></li>
+                  <li class="divider"></li>
+                  <li class="nav-header">Nav header</li>
+                  <li><a href="#">Separated link</a></li>
+                  <li><a href="#">One more separated link</a></li>
+                </ul>
+              </li>
+            </ul>
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+<div id="main_body"> 
+<!--notes on embedding youtube
+<iframe width="560" height="315" src="http://www.youtube.com/embed/phaJXp_zMYM" frameborder="0" allowfullscreen></iframe>
+original link was:
+http://www.youtube.com/watch?v=phaJXp_zMYM&ob=av3n
+-->
+<br>
+{% ifequal index 0 %}
+<form action="/{{next_post_id}}/add_post/" method="post" enctype="multipart/form-data">
+{% csrf_token %}
+<label for="id_title">Title:</label>
+<textarea name='new_post_title' rows=1 style="width: 400px" id="id_title"></textarea>
+<br>
+<label for="id_text">Text:</label>
+<textarea name='new_post_text' rows=6 style="width: 400px" id="id_text"></textarea>
+<br>
+<input type="file" name="post_photo" size="48"> 
+<br>
+<!--<label for="choices" id="choices"></label>-->
+<div id="choices"></div>
+<input type="submit" value="Submit" class="btn btn-primary btn-large"/>
+<button type="button" class="btn btn-primary btn-large" onclick="DisplayChoices()">
+<label id="poll_button">Poll</label>
+</button>
+</form>
+{% endifequal %}
+{% if post_tuple_list %}
+    <!--<ul>-->
+    {% for num_choices, has_voted, post, post_embed_list, num_comments in post_tuple_list %}
+       <script>GetPostIndex()</script>
+       <div style="max-width:453" class ="main_title">
+       <h2>{{ post.title }} </h2>
+       <i>by {{ post.author}}</i>
+       </div>
+       <br>
+       <br>
+       {% if post.postphoto_set %}
+           {% for photo in post.postphoto_set.all %}
+             <img src="{{MEDIA_URL}}/{{ photo.image }}"alt="missing photo?" ><br><br>
+           {% endfor %}
+       {% endif %}
+       <!--{{ post.text|urlize }}-->
+       {% for is_embedded_link, text in post_embed_list %}
+         {% ifequal is_embedded_link 0 %}
+           <div style="max-width:453" class ="main_text">
+           {{ text|urlize }}
+           </div>
+         {% else %}
+           <br>
+           <!--<iframe width="560" height="315" src="{{ text }}" frameborder="0" allowfullscreen></iframe>-->
+           <iframe width="453" height="259" src="{{ text }}" frameborder="0" allowfullscreen></iframe>
+           <br>
+         {% endifequal %} 
+       {% endfor %}
+       {% ifnotequal num_choices 0 %}
+           {% ifequal has_voted 0 %}
+             <form action="/{{ post.id }}/vote/?post_index={{ forloop.counter }}" method="post">
+             {% csrf_token %}
+             <br>
+             {% for  choice in post.choice_set.all %}
+               <br>
+               <input type="radio" name="selected_choice" value="{{ forloop.counter }}" size="40">{{choice.text}}
+             {% endfor %}
+             <br>
+             <br>
+             <input type="submit" value="Vote" class="btn btn-primary btn-large"/>
+             </form>
+           {% else %}
+             <div class="bargraph">
+             <table border="0">
+             {% for  choice in post.choice_set.all %}
+               <script> 
+               var bar_width = 30*{{choice.votes}};
+               document.write("<tr><td>{{choice.text}}</td><td><img src=\"{{STATIC_URL}}/bar.png\" alt=\"bar\"  height=\"20\" width=\""+bar_width+"\"/></td><td>{{choice.votes}}</td></tr>");
+               </script>
+               <br>
+             {% endfor %}
+             </table>
+             </div>
+             <br>
+           {% endifequal %}
+       {% endifnotequal %}
+       <br>
+       <br>
+       <a href="/post/{{ post.id }}/">Comments ({{num_comments}})</a>
+    {% endfor %}
+    <br>
+    <br>
+    <div class = "footer"> 
+    {% ifnotequal previous_index -1 %}
+      <a href="/home/{{ previous_index }}/">Previous  </a>  
+    {% endifnotequal %}
+    {% ifnotequal next_index -1 %}
+      <a href="/home/{{ next_index }}/">Next</a>
+    {% endifnotequal %}
+    </div>
+    
+{% else %}
+    <p>No posts are available.</p>
+{% endif %}
+</div> <!--"main_body"--> 
+</body>
+

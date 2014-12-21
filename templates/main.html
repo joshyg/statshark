@@ -1,0 +1,906 @@
+<!--[if IE]>
+<!DOCTYPE html>
+<![endif]-->
+<link href="{{STATIC_URL}}bootstrap.min.css" rel="stylesheet" media="screen">
+<link rel="stylesheet" type="text/css" href="{{ STATIC_URL }}style.css" />
+<!--<script type="text/javascript" src="{{STATIC_URL}}jquery-1.3.2.min.js"></script>-->
+<script type="text/javascript" src="http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.js"></script>
+
+<script type="text/javascript">
+var positions = [
+  'C','CB','DB','DE','DL','DT','FB','FS','G','ILB','K','LB','LS','MLB','NT','OG','OL','OLB','OT','P','QB','RB','SAF','SS','T','TE','WR'
+  ];
+var teams = [
+  "Arizona",  "Atlanta",  "Baltimore",  "Buffalo",  "Carolina",  "Chicago",  "Cincinnati",  "Cleveland",  "Dallas",  "Denver",  "Detroit",
+  "Green Bay",  "Houston",  "Indianapolis",  "Jacksonville",  "Kansas City",  "Miami",  "Minnesota",  "New England",  "New Orleans",  "NY Giants",
+  "NY Jets",  "Oakland",  "Philadelphia",  "Pittsburgh",  "San Diego",  "San Francisco",  "Seattle",  "St. Louis",  "Tampa Bay",  "Tennessee",  "Washington",
+  //old teams
+  "Los Angeles Rams",
+  "Los Angeles Raiders",
+  "Houston Oilers",
+  "Tennessee Oilers",
+  "St Louis Cardinals",
+  "Phoenix Cardinals",
+  "Baltimore Colts"
+];
+function toTitleCase(str)
+{
+    return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
+}
+function get_week(season,week) {
+  if(week <= 17 || season == 1993 && week == 18) {
+    return week;
+  }
+  else {
+    if (season == '1993'){
+      week = week - 1;
+    }
+    if(week == 18) {
+      return 'WC';
+    }
+    else if(week == 19) {
+      return 'DIV';
+    }
+    else if(week == 20) {
+      return 'CONF';
+    }
+    else if(week >= 21) {
+      return 'SB';
+    }
+    return week;
+  }
+}
+    
+var game_columns = 9;
+function setdisplay(tab) {
+  if(tab == 1) {
+    document.getElementById('summary').style.display = 'block';
+    document.getElementById('player_results').style.display = 'none';
+    document.getElementById('game_results').style.display = 'none';
+  }
+  else if(tab == 2)  {
+    document.getElementById('summary').style.display = 'none';
+    document.getElementById('player_results').style.display = 'block';
+    document.getElementById('game_results').style.display = 'none';
+  }
+  else if(tab == 3)  {
+    document.getElementById('summary').style.display = 'none';
+    document.getElementById('player_results').style.display = 'none';
+    document.getElementById('game_results').style.display = 'block';
+  }
+  else if(tab == 4)  {
+    document.getElementById('TeamSum').style.display = 'block';
+    document.getElementById('PlayerSum').style.display = 'none';
+  }
+  else if(tab == 5)  {
+    document.getElementById('TeamSum').style.display = 'none';
+    document.getElementById('PlayerSum').style.display = 'block';
+  }
+  else if(tab == 6)  {
+    document.getElementById('PlayerCharts').style.display = 'block';
+    document.getElementById('PlayerTables').style.display = 'none';
+  }
+  else if(tab == 7)  {
+    document.getElementById('PlayerCharts').style.display = 'none';
+    document.getElementById('PlayerTables').style.display = 'block';
+  }
+}
+ 
+function GetSelectValue(sel){
+  var val = sel.options[sel.selectedIndex].value;
+  if(val == 1) {
+    DisplayConfList(sel.name);
+  }
+  else if(val == 2) {
+    DisplayTeamList(sel.name);
+  }
+  else if(val == 3 || val == 12) {
+    DisplayNumberComp(sel.name, val);
+  }
+  else if(val == 4 || val == 5) {
+    DisplayHomeAway(sel.name);
+  }
+  else if(val == 6 || val == 8 || val == 9 || val == 17) {
+    DisplayNumberComp(sel.name, val);
+  }
+  else if(val == 7) {
+    DisplayWeekComp(sel.name);
+  }
+  else if(val == 10 || val == 11) {
+    DisplayPlayer(sel.name);
+  }
+  else if(val == 13) {
+    DisplayFieldType(sel.name);
+  }
+  else if(val == 14 || val == 15 || val == 16) {
+    DisplayNumberComp(sel.name);
+  }
+}
+
+function DisplayPlayer(table) {
+  string = "<input type=\"text\" class=\"input-block-level\" name=\""+table+"_value\">";
+  document.getElementById("conditions_"+table+"_right").innerHTML = string;
+  document.getElementById("conditions_"+table+"_far_right").innerHTML = "";
+}
+function DisplayNumberComp(table,compval) {
+  string = "<select name=\""+table+"_comptype\">";
+  string += "<option value=0>Greater Than</option>";
+  string += "<option value=1>Equal To</option>";
+  string += "<option value=2>Less Than</option>";
+  string +="</select>";
+  document.getElementById("conditions_"+table+"_right").innerHTML = string;
+  string = "<input type=\"text\" class=\"input-block-level\" name=\""+table+"_value\">";
+  document.getElementById("conditions_"+table+"_far_right").innerHTML = string;
+}
+function DisplayWeekComp(table,compval) {
+  string = "<select name=\""+table+"_comptype\">";
+  string += "<option value=0>Greater Than</option>";
+  string += "<option value=1>Equal To</option>";
+  string += "<option value=2>Less Than</option>";
+  string +="</select>";
+  document.getElementById("conditions_"+table+"_right").innerHTML = string;
+  string = "<select name=\""+table+"_value\">";
+  string += "<option value=0>0</option>";
+  string += "<option value=1>1</option>";
+  string += "<option value=2>2</option>";
+  string += "<option value=3>3</option>";
+  string += "<option value=4>4</option>";
+  string += "<option value=5>5</option>";
+  string += "<option value=6>6</option>";
+  string += "<option value=7>7</option>";
+  string += "<option value=8>8</option>";
+  string += "<option value=9>9</option>";
+  string += "<option value=10>10</option>";
+  string += "<option value=11>11</option>";
+  string += "<option value=12>12</option>";
+  string += "<option value=13>13</option>";
+  string += "<option value=14>14</option>";
+  string += "<option value=15>15</option>";
+  string += "<option value=16>16</option>";
+  string += "<option value=17>17</option>";
+  string += "<option value=18>Wild Card</option>";
+  string += "<option value=19>Divisional</option>";
+  string += "<option value=20>Conference</option>";
+  string += "<option value=21>Superbowl</option>";
+  string +="</select>";
+  document.getElementById("conditions_"+table+"_far_right").innerHTML = string;
+}
+
+
+function DisplayConfList(table) {
+  string = "<select name=\""+table+"_value\">";
+  string += "<option value=0>AFC</option>";
+  string += "<option value=1>AFC East</option>";
+  string += "<option value=2>AFC North</option>";
+  string += "<option value=3>AFC South</option>";
+  string += "<option value=4>AFC West</option>";
+  string += "<option value=5>NFC</option>";
+  string += "<option value=6>NFC East</option>";
+  string += "<option value=7>NFC North</option>";
+  string += "<option value=8>NFC South</option>";
+  string += "<option value=9>NFC West</option>";
+  string +="</select>";
+  //document.getElementById('debug').innerHTML="conditions_"+table+"_right";
+  document.getElementById("conditions_"+table+"_right").innerHTML = string;
+  document.getElementById("conditions_"+table+"_far_right").innerHTML = "";
+}
+function DisplayFieldType(table) {
+  string = "<select name=\""+table+"_value\">";
+  string += "<option value=0>Grass</option>";
+  string += "<option value=1>Turf</option>";
+  string +="</select>";
+  //document.getElementById('debug').innerHTML="conditions_"+table+"_right";
+  document.getElementById("conditions_"+table+"_right").innerHTML = string;
+  document.getElementById("conditions_"+table+"_far_right").innerHTML = "";
+}
+//Following function just erases right and far_right fields
+function DisplayHomeAway(table) {
+  document.getElementById("conditions_"+table+"_right").innerHTML = "";
+  document.getElementById("conditions_"+table+"_far_right").innerHTML = "";
+
+}
+function DisplayTeamList(table) {
+  string = "<select name=\""+table+"_value\">";
+  string += "<option value=0>Arizona</option>";
+  string += "<option value=1>Atlanta</option>";
+  string += "<option value=2>Baltimore</option>";
+  string += "<option value=3>Buffalo</option>";
+  string += "<option value=4>Carolina</option>";
+  string += "<option value=5>Chicago</option>";
+  string += "<option value=6>Cincinnati</option>";
+  string += "<option value=7>Cleveland</option>";
+  string += "<option value=8>Dallas</option>";
+  string += "<option value=9>Denver</option>";
+  string += "<option value=10>Detroit</option>";
+  string += "<option value=11>Green Bay</option>";
+  string += "<option value=12>Houston</option>";
+  string += "<option value=13>Indianapolis</option>";
+  string += "<option value=14>Jacksonville</option>";
+  string += "<option value=15>Kansas City</option>";
+  string += "<option value=16>Miami</option>";
+  string += "<option value=17>Minnesota</option>";
+  string += "<option value=18>New England</option>";
+  string += "<option value=19>New Orleans</option>";
+  string += "<option value=20>NY Giants</option>";
+  string += "<option value=21>NY Jets</option>";
+  string += "<option value=22>Oakland</option>";
+  string += "<option value=23>Philadelphia</option>";
+  string += "<option value=24>Pittsburgh</option>";
+  string += "<option value=25>San Diego</option>";
+  string += "<option value=26>San Francisco</option>";
+  string += "<option value=27>Seattle</option>";
+  string += "<option value=28>St. Louis</option>";
+  string += "<option value=29>Tampa Bay</option>";
+  string += "<option value=30>Tennessee</option>";
+  string += "<option value=31>Washington</option>";
+  string += "</select>";
+  document.getElementById("conditions_"+table+"_right").innerHTML = string;
+  document.getElementById("conditions_"+table+"_far_right").innerHTML = '';
+}
+var condition_number_a = 0;
+var condition_number_b = 0;
+var condition_number_g = 0;
+function AddCondition(team) {
+  var condition_number;
+  if(team == 'a') {
+    condition_number_a += 1;
+    condition_number = condition_number_a;
+    document.forms['conditions']['num_team_a_conditions'].value = condition_number+1;
+  }
+  else if (team == 'b'){
+    condition_number_b += 1;
+    condition_number = condition_number_b;
+    document.forms['conditions']['num_team_b_conditions'].value = condition_number+1;
+  }   
+  else if (team == 'g'){
+    condition_number_g += 1;
+    condition_number = condition_number_g;
+    document.forms['conditions']['num_game_conditions'].value = condition_number+1;
+  }   
+  next_condition_number = condition_number + 1;
+  if(team != 'g') {
+    string = "<table id=\"team_"+team+"_"+condition_number+"\">";
+  }
+  else {
+    string = "<table id=\"g_"+condition_number+"\">";
+  }
+  string += "<tr>";
+  string += "<td>";
+  string += "<select name=\""+team+"_"+condition_number+"\" onchange=\"GetSelectValue(this)\">";
+  string += "<option value=0 selected>Choose Condition</option>";
+  if(team != 'g') {
+    string += "<option value=1> Is In...</option>";
+    string += "<option value=2>Is Equal to...</option>";
+  }
+  //for now I will only let team a.  I think this is less confusing
+  if(team == 'a'){
+    string += "<option value=3>Favored By</option>";
+    string += "<option value=12>Underdog Of</option>";
+  }
+  if(team != 'g') {
+    string += "<option value=4>Is Home</option>";
+    string += "<option value=5>Is Away</option>";
+  }
+  if(team == 'g'){
+    string += "<option value=6>Season Is</option>";
+    string += "<option value=7>Week</option>";
+    string += "<option value=8>Over/Under</option>";
+    string += "<option value=13>Field Type</option>";
+    string += "<option value=14>Temperature</option>";
+    string += "<option value=15>Wind Speed (mph)</option>";
+    string += "<option value=16>Relative Humidity (%)</option>";
+  }
+  if(team != 'g') {
+    string += "<option value=9>Has Winning Percentage Of...</option>";
+    string += "<option value=17>Has Winning Streak Of...</option>";
+    string += "<option value=10>Has Player...</option>";
+    string += "<option value=11>Has Coach...</option>";
+  }
+  string += "</select>";
+  string += "</td><td>";
+  string += "<span id=\"conditions_"+team+"_"+condition_number+"_right\"></span>";
+  string += "</td><td>";
+  string += "<span id=\"conditions_"+team+"_"+condition_number+"_far_right\"></span>";
+  string += "</td><td>";
+  //string += "<a onclick=\" AddCondition(\'"+team+"\')\" href=\"javascript:void(0);\">Add Condition "+next_condition_number+ " For Team "+team+"</a><br>";
+  string += "<a onclick=\" AddCondition(\'"+team+"\')\" href=\"javascript:void(0);\">Add</a> ";
+  string += "<a onclick=\" DeleteCondition(\'"+team+"\',\'"+condition_number+"\')\" href=\"javascript:void(0);\">Delete</a><br>";
+  string += "</td>";
+  string += "</tr>";
+  string += "</table>";
+  string += "</span>";
+  string += "<span id = \"conditions_"+team+"_"+next_condition_number+"\"></span><br>";
+  //document.getElementById('debug').innerHTML = 'conditions_'+team+'_'+condition_number;
+  document.getElementById('conditions_'+team+'_'+condition_number).innerHTML=string;
+}
+function DeleteCondition(team, condition_number) {
+  var next_condition_number = condition_number + 1;
+  if(team != 'g') {
+    document.getElementById('team_'+team+'_'+condition_number).innerHTML='';
+  }
+  else {
+    document.getElementById('g_'+condition_number).innerHTML='';
+  }
+  document.forms['conditions'][team+'_'+condition_number].value=0;
+}
+
+function ShowMainForm() {
+  document.getElementById('main_form').style.display = 'block';
+  document.getElementById('return_to_form').style.display = 'none';
+}
+function InitPage() {
+  document.getElementById('main_form').style.display = 'block';
+  document.getElementById('return_to_form').style.display = 'none';
+  document.getElementById('return_to_form').style.display = 'none';
+}
+  
+</script>
+<script type="text/javascript">
+  function ajax_submit(){
+    var xmlhttproll = new XMLHttpRequest();
+    //response received function
+    xmlhttproll.onreadystatechange=function(){
+      if (xmlhttproll.readyState==4 && xmlhttproll.status==200){
+        //a good response has occured
+        document.getElementById('summary').style.display = 'block';
+        document.getElementById('player_results').style.display = 'none';
+        document.getElementById('game_results').style.display = 'none';
+        document.getElementById('main_form').style.display = 'none';
+        document.getElementById('return_to_form').style.display = 'block';
+        serverdata = eval( '(' + xmlhttproll.responseText + ')');
+        summary_string = '';
+        player_string = '';
+        game_string = '';
+        num_sum_charts = 1;
+        //following can be used to quickly turn plotting off and on
+        plotting = 1;
+        if(parseInt(serverdata.results_exist) == 1) {
+          //team summaries
+          summary_string += '<ul class="nav nav-pills">';
+          summary_string += '<li class="active" ><a href="#TeamSum" data-toggle="tab" onclick="setdisplay(4)">Team Stats</a></li>';
+          summary_string += '<li><a href="#PlayerSum" data-toggle="tab" onclick="setdisplay(5)">Player Stats</a></li>';
+          summary_string += '</ul>';
+          summary_string += '<div class="tab-content">';
+          summary_string += '<div class="tab-pane active" id="TeamSum">';
+          //summary_string += '<br>Team Data<br>';
+          if(plotting == 1) {
+            //summary_string += '<img src=\"/static/'+serverdata.teamsumchart+'\" alt=\"\" >'
+            summary_string += '<img src=\"{{STATIC_URL}}'+serverdata.teamsumchart+'\" >'
+          }
+
+          summary_string += '<table id=\"player_stats\"><thead><tr><th>ATS</th><th>Win%</th><th>Over Covers</th><th>Avg Pts Scored</th><th>Avg Pts Allowed</th><th>Avg Total Points</th></tr></thead>';
+       
+          summary_string += '<tr>';
+          for (i in serverdata.teama_summary) {
+            summary_string += '<td>'+serverdata.teama_summary[i]+'</td>';
+          }
+          var totalpoints = parseFloat(serverdata.teama_summary[serverdata.teama_summary.length-2]) +  parseFloat(serverdata.teama_summary[serverdata.teama_summary.length-1]);
+          summary_string += '<td>'+totalpoints.toFixed(2)+'</td>';
+          summary_string += '</tr>';
+          summary_string += '</table>';
+          summary_string += '</div>';
+          summary_string += '<div class="tab-pane" id="PlayerSum">';
+          //qb avgs
+          for (player in serverdata.qbs_with_stats) {
+            summary_string += toTitleCase(serverdata.qbs_with_stats[player])+': '
+            if(plotting == 1) {
+              summary_string += 'Total Yards<br>';
+              summary_string += '<img src="/static/'+serverdata.qb_charts[num_sum_charts*player]+'" alt="missing chart?" >';
+              //summary_string += '<br><br>Pass Data<br>';
+              //summary_string += '<img src="/static/'+serverdata.qb_charts[2*player]+'" alt="missing chart?" >';
+              //summary_string += '<br><br>Rush Data<br>';
+              //summary_string += '<img src="/static/'+serverdata.qb_charts[2*player+1]+'\" alt=\"missing chart?\" >';
+            }
+            summary_string += '<table id=\"player_stats\"><thead><tr><th>Comp/Game</th><th>Att/Game</th><th>Yds/Game</th><th>TD/Game</th><th>Rating</th></tr></thead>';
+            summary_string += '<tr>';
+            for (stat in serverdata.qb_avgs[player]) {
+              summary_string += '<td>'+serverdata.qb_avgs[player][stat]+'</td>';
+            }
+            summary_string += '</tr>';
+            summary_string += '</table>'
+          }
+          //rbwr avgs
+          for (player in serverdata.rbwrs_with_stats) {
+            summary_string += toTitleCase(serverdata.rbwrs_with_stats[player])+': '
+            if(plotting == 1) {
+              summary_string += 'Total Yards<br>';
+              summary_string += '<img src="/static/'+serverdata.rbwr_charts[num_sum_charts*player]+'" alt="missing chart?" >';
+              //summary_string += '<br>Reception Data<br>';
+              //summary_string += '<img src="/static/'+serverdata.rbwr_charts[2*player]+'" alt="missing chart?" >';
+              //summary_string += '<br><br>Rush Data<br>';
+              //summary_string += '<img src="/static/'+serverdata.rbwr_charts[2*player+1]+'" alt="missing chart?" >';
+            }
+            summary_string += '<table id=\"player_stats\"><thead><tr><th>RushYds/Game</th><th>Yds/Rush</th><th>RushTD/Game</th><th>RecYds</th><th>Yds/Rec</th><th>RecTD/Game</th></tr></thead>';
+            summary_string += '<tr>';
+            for (stat in serverdata.rbwr_avgs[player]) {
+              summary_string += '<td>'+serverdata.rbwr_avgs[player][stat]+'</td>';
+            }
+            summary_string += '</tr>';
+            summary_string += '</table>';
+          }
+          //def avgs
+          for (player in serverdata.defs_with_stats) {
+            summary_string += '<br><br>'+toTitleCase(serverdata.defs_with_stats[player])+'<br>'
+            summary_string += '<table id=\"player_stats\"><thead><tr><th>Tackles/Game</th><th>Sacks/Game</th><th>Int/Game</th></tr></thead>';
+            summary_string += '<tr>';
+            for (stat in serverdata.def_avgs[player]) {
+              summary_string += '<td>'+serverdata.def_avgs[player][stat]+'</td>';
+            }
+            summary_string += '</tr>';
+            summary_string += '</table>';
+            //if(plotting == 1) {
+            //}
+          }
+          summary_string += '</div></div>';//tab-pane and tab-content
+          //document.getElementById('summary').innerHTML = summary_string;
+          //Full player data
+          var index = 0;
+          var column_index;
+          var row_index;
+          var lastname = '';
+          var firstname = '';
+          var position = '';
+          var numcolumns = 0;
+          var season = 0;
+          var show_full_player_table = 1;
+          var firstplayer = 1;
+          player_string += '<ul class="nav nav-pills">';
+          player_string += '<li class="active" ><a href="#PlayerTables" data-toggle="tab" onclick="setdisplay(7)">Tables</a></li>';
+          player_string += '<li ><a href="#PlayerCharts" data-toggle="tab" onclick="setdisplay(6)">Charts</a></li>';
+          player_string += '</ul>';
+          player_string += '<div class="tab-content">';
+          player_string += '<div class="tab-pane" id="PlayerCharts">';
+          /*This chart takes too long too generate at the back end and is not very useful
+            Maybe ill replace it later with a javascript front end guy 
+          for (player in serverdata.players_with_stats) {
+                  player_string += toTitleCase(serverdata.players_with_stats[player])+': Yards/Game<br>'
+                  player_string += '<img src="/static/'+serverdata.playerdata_charts[player]+'" alt="missing chart?" >';
+                  player_string += '<br>';
+          }
+          */
+          player_string += '</div>';//PlayerCharts
+          player_string += '<div class="tab-pane active" id="PlayerTables">';
+          if(show_full_player_table == 1) {
+            while(index < serverdata.player_table.length && serverdata.player_table[index+4] != undefined) {
+              if(serverdata.player_table[index] == 'hdr') {
+                row_index = 0
+                index += 1;
+                lastname = toTitleCase(serverdata.player_table[index]);
+                index += 1;
+                firstname = toTitleCase(serverdata.player_table[index]);
+                index += 1;
+                position = positions[serverdata.player_table[index]];
+                if(position == 'QB'){
+                  if(firstplayer != 1) {
+                    player_string += '</table>';
+                  }
+                  player_string += 'Full Stats for '+firstname+' '+lastname;
+                  player_string += '<table id=\"player_stats\"><thead><tr><th>Season</th><th>Week</th><th>Away</th><th>Score</th><th>Home</th><th>Score</th><th>Comp</th><th>Att</th><th>Yards</th><th>TD</th><th>Rating</th></tr></thead>';
+                  //following is subject to change, based on how much data im showing for each position
+                  numcolumns = 11;
+                }
+                else if(position == 'RB' || position ==  'FB' || position == 'WR' || position ==  'TE') {
+                  if(firstplayer != 1) {
+                    player_string += '</table>';
+                  }
+                  player_string += 'Full Stats for '+firstname+' '+lastname;
+                  player_string += '<table id=\"player_stats\"><thead><tr><th>Season</th><th>Week</th><th>Away</th><th>Score</th><th>Home</th><th>Score</th><th>RushYds</th><th>RushTD</th><th>RecYds</th><th>RecTD</th></tr></thead>';
+                  //following is subject to change, based on how much data im showing for each position
+                  numcolumns = 10;
+                }
+                else {//defensive player with stats
+                  if(firstplayer != 1) {
+                    player_string += '</table>';
+                  }
+                  player_string += 'Full Stats for '+firstname+' '+lastname;
+                  player_string += '<table id=\"player_stats\"><thead><tr><th>Season</th><th>Week</th><th>Away</th><th>Score</th><th>Home</th><th>Score</th><th>Tackles</th><th>Sacks</th><th>Ints</th></tr></thead>';
+                  //following is subject to change, based on how much data im showing for each position
+                  numcolumns = 9;
+                }
+                firstplayer = 0;
+              }
+              player_string += '<tr>';
+              for(column_index = 0; column_index < numcolumns; column_index+=1) {      
+                if(column_index< 6 && serverdata.result_table[row_index*game_columns + column_index] != undefined) {
+                  if(column_index == 1)  {
+                    player_string += '<td>'+get_week(season,serverdata.result_table[row_index*game_columns + column_index])+'</td>';
+                  }
+                  else if(column_index == 2 || column_index == 4) {
+                    player_string += '<td>'+teams[serverdata.result_table[row_index*game_columns + column_index]]+'</td>';
+                  }
+                  else {
+                    player_string += '<td>'+serverdata.result_table[row_index*game_columns + column_index]+'</td>';
+                    if(column_index == 0) {
+                      season = serverdata.result_table[row_index*game_columns + column_index];
+                    }
+                  }
+                }
+                else {
+                  index +=1;
+                  if(serverdata.player_table[index] != 'hdr') {
+                    player_string += '<td>'+serverdata.player_table[index]+'</td>';
+                  }
+                  else {
+                    column_index = numcolumns;
+                  }
+                }
+              }
+              player_string += '</tr>';
+              row_index += 1;
+              if(index == serverdata.player_table.length-1) {
+                player_string += '</table>';
+              }
+            }
+          }
+          player_string += '</div>';//playertables
+          player_string += '</div>';
+          //document.getElementById('player_results').innerHTML = player_string;
+          
+          game_string += '<table id=\"gradient-style\"><thead><tr><th>Year</th><th>Week</th><th>Away</th><th>Score</th><th>Home</th><th>Score</th><th>Spread</th><th>Over/Under</th><th>Team A</th></tr></thead>';
+          var row_index = 0;
+          var column_index;
+          while(row_index < serverdata.result_table.length && serverdata.result_table[row_index*game_columns] != undefined) {
+            game_string += '<tr>';
+            for(column_index = 0; column_index < game_columns; column_index+=1) {      
+              if(column_index == 1) {
+                game_string += '<td>'+get_week(season, serverdata.result_table[row_index*game_columns + column_index])+'</td>';
+              }
+              else if(column_index == 2 || column_index == 4 || column_index == 8) {
+                game_string += '<td>'+teams[serverdata.result_table[row_index*game_columns + column_index]]+'</td>';
+              }
+              else{
+                game_string += '<td>'+serverdata.result_table[row_index*game_columns + column_index]+'</td>';
+                if(column_index == 0) {
+                  season = serverdata.result_table[row_index*game_columns + column_index];
+                }
+              }
+            }
+            game_string += '</tr>';
+            row_index +=1;
+          }
+          game_string += '</table>';
+        }
+        else {
+          game_string += 'No games match query';
+          summary_string += 'No games match query';
+          player_string += 'No games match query';
+        }
+        document.getElementById('game_results').innerHTML = game_string;
+        document.getElementById('summary').innerHTML = summary_string;
+        document.getElementById('player_results').innerHTML = player_string;
+      }
+    }
+    //submit response function not sure what the true parameter is all about
+    var i = 0;
+    var string = 'num_team_a_conditions='+(condition_number_a+1)+'&num_team_b_conditions='+(condition_number_b+1)+'&num_game_conditions='+(condition_number_g+1)+'&';
+    while(i < condition_number_a+1) {
+      if(document.forms['conditions']['a_'+i] != undefined) {
+        if(document.forms['conditions']['a_'+i].value != 0) {
+          string += 'a_'+i+'='+document.forms['conditions']['a_'+i].value+'&';
+          if(document.forms['conditions']['a_'+i+'_value'] != undefined){
+            string += 'a_'+i+'_value='+document.forms['conditions']['a_'+i+'_value'].value+'&';
+          }
+         
+          
+          //Adding comptype to GET req
+        }
+        else {
+          string += 'a_'+i+'='+document.forms['conditions']['a_'+i].value+'&';
+          string += 'a_'+i+'_value=0&';
+        }
+      }
+      else {
+          string += 'a_'+i+'=0&';
+          string += 'a_'+i+'_value=0&';
+      }
+      if(document.forms['conditions']['a_'+i+'_comptype'] != undefined){
+        string += 'a_'+i+'_comptype='+document.forms['conditions']['a_'+i+'_comptype'].value+'&';
+      }
+      i+=1;
+    }
+    i = 0;
+    while(i < condition_number_b+1) {
+      if(document.forms['conditions']['b_'+i] != undefined) {
+        if(document.forms['conditions']['b_'+i].value != 0) {
+          string += 'b_'+i+'='+document.forms['conditions']['b_'+i].value+'&';
+          if(document.forms['conditions']['b_'+i+'_value'] != undefined){
+            string += 'b_'+i+'_value='+document.forms['conditions']['b_'+i+'_value'].value+'&';
+          }
+        }
+        else {
+          string += 'b_'+i+'='+document.forms['conditions']['b_'+i].value+'&';
+          string += 'b_'+i+'_value=0&';
+        }
+      }
+      else {
+          string += 'b_'+i+'=0&';
+          string += 'b_'+i+'_value=0&';
+      }
+      if(document.forms['conditions']['b_'+i+'_comptype'] != undefined){
+        string += 'b_'+i+'_comptype='+document.forms['conditions']['b_'+i+'_comptype'].value+'&';
+      }
+      i+=1;
+    }
+    i = 0;
+    while(i < condition_number_g+1) {
+      if(document.forms['conditions']['g_'+i] != undefined) {
+        if(document.forms['conditions']['g_'+i].value != 0) {
+          string += 'g_'+i+'='+document.forms['conditions']['g_'+i].value+'&';
+          if(document.forms['conditions']['g_'+i+'_value'] != undefined){
+            string += 'g_'+i+'_value='+document.forms['conditions']['g_'+i+'_value'].value+'&';
+          }
+        }
+        else {
+          string += 'g_'+i+'='+document.forms['conditions']['g_'+i].value+'&';
+          string += 'g_'+i+'_value=0&';
+        }
+      }
+      else {
+          string += 'g_'+i+'=0&';
+          string += 'g_'+i+'_value=0&';
+      }
+      if(document.forms['conditions']['g_'+i+'_comptype'] != undefined){
+        string += 'g_'+i+'_comptype='+document.forms['conditions']['g_'+i+'_comptype'].value+'&';
+      }
+      i+=1;
+    }
+    xmlhttproll.open('GET', '/submit/?'+string, true);
+    xmlhttproll.send();
+
+}
+</script>
+<body onload="javascript:InitPage()">
+   <!-- from bootstrap-->
+    <div class="navbar navbar-inverse navbar-fixed-top">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="btn btn-navbar" data-toggle="collapse" data-target=".nav-collapse">
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </a>
+          <a class="brand" href="#">StatShark</a>
+          <div class="nav-collapse collapse">
+            <ul class="nav">
+              <li class="active"><a href="#">Home</a></li>
+              <li><a href="#about">Blog</a></li>
+              <li><a href="/forum/">Forum</a></li>
+              <li class="dropdown">
+                <a href="#" class="dropdown-toggle" data-toggle="dropdown">Settings <b class="caret"></b></a>
+                <ul class="dropdown-menu">
+                  <li><a href="#">Action</a></li>
+                  <li><a href="#">Another action</a></li>
+                  <li><a href="#">Something else here</a></li>
+                  <li class="divider"></li>
+                  <li class="nav-header">Nav header</li>
+                  <li><a href="#">Separated link</a></li>
+                  <li><a href="#">One more separated link</a></li>
+                </ul>
+              </li>
+            </ul>
+            <!--
+            <form class="navbar-form pull-right">
+              <input class="span2" type="text" placeholder="Email">
+              <input class="span2" type="password" placeholder="Password">
+              <button type="submit" class="btn">Sign in</button>
+            </form>
+            -->
+          </div><!--/.nav-collapse -->
+        </div>
+      </div>
+    </div>
+<div id="main_body"> 
+<div id = "main_form">
+<form action="/submit/" method="post" name = "conditions" enctype="multipart/form-data" onsubmit="ajax_submit();return false;">
+{% csrf_token %}
+<input type="hidden", name="num_team_a_conditions", value = 1>
+<input type="hidden", name="num_team_b_conditions", value = 1>
+<input type="hidden", name="num_game_conditions", value = 1>
+<br>
+<p>Constrain Game</p>
+<span id = "conditions_g0">
+<table id="g_0" name="g_0">
+<tr><td>
+<select name="g_0"onchange="GetSelectValue(this)">
+<option value=0 selected>Choose Condition</option>
+<option value=6>Season</option>
+<option value=7>Week</option>
+<option value=8>Over/Under</option>
+<option value=13>Field Type</option>
+<option value=14>Temperature</option>
+<option value=15>Wind Speed (mph)</option>
+<option value=16>Relative Humidity (%)</option>
+</select>
+</td>
+<td>
+<span id="conditions_g_0_right"></span>
+</td>
+<td>
+<span id="conditions_g_0_far_right"></span>
+</td>
+<td>
+<a onclick="AddCondition('g')" href="javascript:void(0);">Add</a>
+</td>
+</tr>
+</table>
+</span><!--conditions_g0-->
+<span id = "conditions_g_1"></span>
+<p>Constrain Team</p>
+<span id = "conditions_a0">
+<table id="team_a_0" name="team_a_0">
+<tr><td>
+<select name="a_0"onchange="GetSelectValue(this)">
+<option value=0 selected>Choose Condition</option>
+<option value=1>Is In...</option>
+<option value=2>Is Equal to...</option>
+<option value=3>Favored By</option>
+<option value=12>UnderDog Of</option>
+<option value=4>Is Home</option>
+<option value=5>Is Away</option>
+<option value=8>Over/Under</option>
+<option value=9>Has Winning Percentage Of...</option>
+<option value=17>Has Winning Streak Of...</option>
+<option value=10>Has Player...</option>
+<option value=11>Has Coach...</option>
+</select>
+</td>
+<td>
+<span id="conditions_a_0_right"></span>
+</td>
+<td>
+<span id="conditions_a_0_far_right"></span>
+</td>
+<td>
+<a onclick="AddCondition('a')" href="javascript:void(0);">Add</a>
+</td>
+</tr>
+</table>
+</span><!--conditions_a_0-->
+<span id = "conditions_a_1"></span>
+<p>Constrain Opposition</p>
+<span id = "conditions_b0">
+<table id="team_b_0" name="team_b_0">
+<tr><td>
+<select name="b_0"onchange="GetSelectValue(this)">
+<option value=0 selected>Choose Condition</option>
+<option value=1>Is In...</option>
+<option value=2>Is Equal to...</option>
+<!--for now I will only let user add spread for team a.  
+I think this is less confusing
+<option value=3>Spread Is...</option>
+-->
+<option value=4>Is Home</option>
+<option value=5>Is Away</option>
+<option value=9>Has Winning Percentage Of...</option>
+<option value=17>Has Winning Streak Of...</option>
+<option value=10>Has Player...</option>
+<option value=11>Has Coach...</option>
+</select>
+</td>
+<td>
+<span id="conditions_b_0_right"></span>
+</td>
+<td>
+<span id="conditions_b_0_far_right"></span>
+</td>
+<td>
+<a onclick="AddCondition('b')" href="javascript:void(0);">Add</a>
+</td>
+</tr>
+</table>
+</span>
+<tr>
+<span id = "conditions_b_1"></span>
+</tr>
+</table>
+<table><tr><td>
+<!--
+<span id = "submit_button">
+<input type="submit" name="submit" value="Submit Request"/>
+</span>
+-->
+<input type="submit" class="btn btn-primary btn-large" value="Submit" style="hidden"/>
+</td></tr></table>
+</form>
+</div> <!--"main_form"-->
+<div id = "return_to_form" style="hidden">
+<br>
+<a href="javascript:void(0);" style="none" onclick="ShowMainForm()"/>Edit Conditions</a>
+</div>
+
+<!--
+tabs are from: http://css-tricks.com/functional-css-tabs-revisited/
+-->
+<!--
+<div class="tabs" id=tabs>
+   <div class="tab">
+       <input type="radio" id="tab-1" name="tab-group-1" checked onclick="setdisplay(1)">
+       <label for="tab-1">Summary</label>
+       <div class="content" id='summary'>
+       </div> 
+   </div>
+   <div class="tab">
+       <input type="radio" id="tab-2" name="tab-group-1" onclick="setdisplay(2)">
+       <label for="tab-2">Player Data</label>
+       <div class="content"id='player_results'>
+       </div> 
+   </div>
+    <div class="tab">
+       <input type="radio" id="tab-3" name="tab-group-1" onclick="setdisplay(3)">
+       <label for="tab-3">Game Data</label>
+       <div class="content" id='game_results'>
+       </div> 
+   </div>
+</div>
+<ul class="nav nav-tabs">
+  <li class="active">
+    <a href="#"  onclick="setdisplay(1)">Summary</a>
+  </li>
+  <li><a href="#"  onclick="setdisplay(2)">Player Data</a></li>
+  <li><a href="#"  onclick="setdisplay(3)">Game Data</a></li>
+</ul>
+<div id='summary'>
+</div> 
+<div id='player_results'>
+</div> 
+<div id='game_results'>
+</div> 
+-->
+
+<div class="tabbable"> <!-- Only required for left/right tabs -->
+  <ul class="nav nav-tabs" id="myTab" data-tabs="tabs">
+    <!--
+    <li class="active"><a href="#summary" data-toggle="tab" onclick="setdisplay(1)">Summary</a></li>
+    <li><a href="#player_results" data-toggle="tab" onclick="setdisplay(2)">Player Data</a></li>
+    <li><a href="#game_results" data-toggle="tab" onclick="setdisplay(3)">Game Data</a></li>
+-->
+    <li class="active"><a href="#summary" data-toggle="tab" onclick="setdisplay(1)">Summary</a></li>
+    <li><a href="#player_results" data-toggle="tab" onclick="setdisplay(2)" >Player Data</a></li>
+    <li><a href="#game_results" data-toggle="tab" onclick="setdisplay(3)">Game Data</a></li>
+  </ul>
+  <div class="tab-content">
+    <div class="tab-pane active" id="summary">
+    </div>
+    <div class="tab-pane" id="player_results">
+    </div>
+    <div class="tab-pane" id="game_results">
+    </div>
+  </div>
+</div>
+ <!--
+<script type="text/javascript">
+    jQuery(document).ready(function ($) {
+        $('#myTab').tab();
+    });
+</script>
+<script>
+
+$('#myTab a').click(function (e) {
+  e.preventDefault();
+  $(this).tab('show');
+})
+
+  $(function () {
+    $('#myTab a:[href="#summary"]').tab('show');
+  })
+  $(function () {
+    $('#myTab a:[href="#player_results"]').tab('show');
+  })
+  $(function () {
+    $('#myTab a:[href="#game_results"]').tab('show');
+  })
+</script>
+-->
+<script src="{{STATIC_URL}}bootstrap.min.js"></script>
+
+<!--
+<span id='debug'></span>
+-->
+<!--[if IE]>
+<br><br><br><br><br><br>
+<br><br><br><br><br><br>
+<br><br><br><br><br><br>
+<![endif]-->
+</div>
+</body>
+
