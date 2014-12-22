@@ -3,9 +3,9 @@
 The superscript should take as an input:
 1) min date (yr + week)
 2) max date (yr + week)
-3) possibly some _seasonMode bits such as regular season, post season, etc.
+3) possibly some _argDict['seasonMode'] bits such as regular season, post season, etc.
 
-All input parameters _seasonMode fields should be at the top
+All input parameters _argDict['seasonMode'] fields should be at the top
 
 the superscript can make intermediate csvs but they should be temporary
 
@@ -16,10 +16,11 @@ The superscript should continue when there is an error, but output the errors to
 
 This superscript should be entirely from nfl.com (other than line info).  Other superscripts can come from other locations
 
-all print statements should be for debug, stdout should not be piped to any other script
+all print statements should be for _argDict['debug'], stdout should not be piped to any other script
 
 It is better to duplicate work and have the script be independent than vice versa
 """
+import argparse
 import django
 import sys,os
 import urllib2 as url
@@ -40,20 +41,24 @@ from decimal import *
 # Input params
 #
 
-minyear=2013
-minweek=17
-maxyear=2013
-maxweek=22
-debug = False
-_seasonMode = 'postseason' # certain links follow a different format for regular/postseason
+_argDict = {}
+_argDict['minyear'] =2014
+_argDict['minweek'] =1
+_argDict['maxyear'] =2014
+_argDict['maxweek'] =15
+_argDict['debug'] = False
+_argDict['seasonMode'] = 'regularseason' # certain links follow a different format for regular/postseason
+_argDict['overwrite'] = False # Sometimes we want to overwrite everything, other times we dont :)
+_argDict['updateGames'] = True
+_argDict['updatePlayers'] = False
+_argDict['stopOnFail'] = False
+
+_gameDataSource = 'wagetracker' #we have various sources for game data, some are better for different time periods
 _currentSeason = 2014
-_overwrite = False # Sometimes we want to overwrite everything, other times we dont :)
 _mvOldPlayerIds = True # Sometimes nfl.com changes the player ids, causing an enormous headache.
                     # the situation is hard to deal with since its also possible for 2 players with different
                     # ids to have the same name.  When this is true we migrate player data from old id to new id when we find it
 
-_updateGames = True
-_updatePlayers = True
 # end of Input params
 
 # Global data structures
@@ -66,7 +71,7 @@ _rosterLinks = []
 _playerList = []
 
 #Keep order consistent with array ing views.py
-positions = [
+_positions = [
   'C',
   'CB',
   'DB',
@@ -101,7 +106,7 @@ positions = [
   #following is generic nostat, used for pregc stats where i dont know exct pos _yet_
   'NA',
   ]
-teams = [
+_teams = [
   "cardinals",
   "falcons",
   "ravens",
@@ -135,8 +140,44 @@ teams = [
   "titans",
   "redskins",
 ]
+_team_cities = [
+  "Arizona",
+  "Atlanta",
+  "Baltimore",
+  "Buffalo",
+  "Carolina",
+  "Chicago",
+  "Cincinnati",
+  "Cleveland",
+  "Dallas",
+  "Denver",
+  "Detroit",
+  "Green Bay",
+  "Houston",
+  "Indianapolis",
+  "Jacksonville",
+  "Kansas City",
+  "Miami",
+  "Minnesota",
+  "New England",
+  "New Orleans",
+  "NY Giants",
+  "NY Jets",
+  "Oakland",
+  "Philadelphia",
+  "Pittsburgh",
+  "San Diego",
+  "San Francisco",
+  "Seattle",
+  "St. Louis",
+  "Tampa Bay",
+  "Tennessee",
+  "Washington",
+]
+
+_team_city_dict = dict(zip(_team_cities, _teams))
  
-team_abbrevs = {
+_team_abbrevs = {
     "GB" : "packers",
     "SEA" : "seahawks",
     "WAS" : "redskins",
@@ -171,10 +212,10 @@ team_abbrevs = {
     "ARI" : "cardinals",
 }
 
-_teamRecord = { val: {} for val in teams }
+_teamRecord = { val: {} for val in _teams }
 
 # Convert column names in nfl.com to our own field names
-fieldDict = { 
+_fieldDict = { 
          'Away Final Score' : 'away_team_score',
          'Home Final Score': 'home_team_score',
          'Away Total Net Yards': 'away_team_yards',
@@ -239,12 +280,12 @@ def isDefense(position = ''):
     return False
 
 def getAllGameLinks():
-    if ( _seasonMode == 'regularseason' ):
+    if ( _argDict['seasonMode'] == 'regularseason' ):
         wkPrefix = 'REG'
-    elif ( _seasonMode == 'postseason' ):
+    elif ( _argDict['seasonMode'] == 'postseason' ):
         wkPrefix = 'POST'
-    for yr in range(minyear,maxyear+1):
-        for wk in range(minweek,maxweek+1):
+    for yr in range(_argDict['minyear'],_argDict['maxyear']+1):
+        for wk in range(_argDict['minweek'],_argDict['maxweek']+1):
             sb= url.urlopen('http://www.nfl.com/scores/%d/%s%d'%(yr, wkPrefix, wk))
             scoreboard = sb.readlines()
             getGameLinksFromScoreboard(scoreboard)
@@ -270,12 +311,12 @@ def getTeamRecordsFromScoreboard(scoreboard = [], yr=1, wk=1):
             wins = int(line_re.group(2))
             losses = int(line_re.group(3))
             ties = int(line_re.group(4))
-            print 'wk %d team %s wins = %d'%(wk, team_abbrevs[team], wins)
-            _teamRecord[team_abbrevs[team]]['%d%d'%(yr, wk)] = { 'wins': 0, 'losses' : 0, 'ties' : 0 }
+            print 'wk %d team %s wins = %d'%(wk, _team_abbrevs[team], wins)
+            _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)] = { 'wins': 0, 'losses' : 0, 'ties' : 0 }
             if ( wins + losses + ties > 0 ) :
-                _teamRecord[team_abbrevs[team]]['%d%d'%(yr, wk)]['wins'] = wins
-                _teamRecord[team_abbrevs[team]]['%d%d'%(yr, wk)]['losses'] = losses
-                _teamRecord[team_abbrevs[team]]['%d%d'%(yr, wk)]['ties'] = ties
+                _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)]['wins'] = wins
+                _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)]['losses'] = losses
+                _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)]['ties'] = ties
 
         
 
@@ -295,7 +336,38 @@ def getGameDictListFromGameLinks():
 #
 # This function is specifically looking for the spread in the csvs on repole.com
 #
-def getBetData(gameid, home, away):
+def getBetData(gameid, week, home, away):
+    gameDataFuncs = {
+                        'repole' : getBetDataFromRepole,
+                        'wagetracker' : getBetDataFromWageTracker
+                    }			
+    return gameDataFuncs[_gameDataSource](gameid, week, home, away)
+
+def getBetDataFromWageTracker(gameid, week, home, away):
+    print 'in getBetDataFromWageTracker home = %s away = %s'%(home, away)
+    #print('week,away_team,away_team_score,away_team_spread,away_team_ml,over,under,home_team,home_team_score,home_team_spread,home_team_ml,total') 
+    week_with_preseason = week+5
+    page = url.urlopen('http://www.wagertracker.com/Odds.aspx?week=%d&sport=NFL'%week_with_preseason)
+    matches = 0
+    for line in page.readlines():
+        """
+        <td colspan="2"><table class="stnd"><tr><td class="oddshead">Final</td><td class="oddsheadnum">Score</td><td class="oddsheadnum">Spread</td><td class="oddsheadnum">ML</td><td class="oddsheadnum">Over/Under</td></tr><tr><td class="scoreoddsteamwinning">Dallas</td><td class="scoreodds">24</td><td class="scoreodds">+3.5</td><td class="scoreodds">+166</td><td class="scoreodds"><SPAN class="scoreodds">-106</SPAN>/<SPAN class="scoreodds">-104</SPAN></td></tr><tr><td class="scoreoddsteam">NY Giants</td><td class="scoreodds">17</td><td class="scoreodds">-3.5</td><td class="scoreodds">-185</td><td class="scoreodds">Total: 45.5</td></tr><tr><td colspan=5><a href="oddshistory.aspx?sport=NFL&gameid=1304544">Odds History</a>&nbsp;</tr></tr></table></td>
+        """
+        if(line.count('table class=\"stnd\"') > 0):
+            team_re = re.search(r'scoreoddsteam\S*\">(.*)<.td><td class=\"scoreodds\">(\d+)</td><td class=\"scoreodds\">(\S+)</td><td class="scoreodds">(.*)</td><td class="scoreodds"><SPAN class="scoreodds">(.*)</SPAN>/<SPAN class="scoreodds">(.*)</SPAN></td></tr><tr><td class="scoreoddsteam.*">(.*)</td><td class="scoreodds">(\d+)</td><td class="scoreodds">(.*)</td><td class="scoreodds">(.*)</td><td class="scoreodds">Total: (.*)</td></tr>',line)
+            if(team_re != None):
+                matches+=1
+                away_team = str(team_re.group(1))
+                away_team_spread = str(team_re.group(3))
+                away_team_ml = team_re.group(4)
+                home_team = str(team_re.group(7))
+                total = str(team_re.group(11))
+                if ( _team_city_dict[away_team] == away and _team_city_dict[home_team] == home ):
+                    return ( away_team_spread, total )
+    
+
+    
+def getBetDataFromRepole(gameid, week, home, away):
     yr = int(str(gameid)[0:4])
     month = int(str(gameid)[4:6])
     date = int(str(gameid)[6:8])
@@ -307,9 +379,9 @@ def getBetData(gameid, home, away):
     lineIndex = 5
     overUnderIndex = 6
     print "%s %s %d"%(away, home, gameid)
-    if ( _seasonMode == 'regularseason' ):
+    if ( _argDict['seasonMode'] == 'regularseason' ):
         csvPrefix = 'nfl'
-    elif ( _seasonMode == 'postseason' ):
+    elif ( _argDict['seasonMode'] == 'postseason' ):
         csvPrefix = 'post'
         season = yr - 1
         awayIndex += 1
@@ -336,8 +408,8 @@ def getGameDataDict():
     game_num = 0
     header_list = ['year', 'week','away_team','home_team']
     for game in _gameDictList:
-        if ( not _overwrite ):
-            if ( Games.objects.filter( gameid = game['gameid'] ).count > 0 ):
+        if ( not _argDict['overwrite'] ):
+            if ( Games.objects.filter( gameid = game['gameid'] ).count() > 0 ):
                 print '%d exists, skipping'%game['gameid']
                 continue
    
@@ -347,7 +419,10 @@ def getGameDataDict():
         _gameDataDict[game['gameid']]['away_team'] = game['away_team']
         _gameDataDict[game['gameid']]['home_team'] = game['home_team']
         _gameDataDict[game['gameid']]['year'] = game['year']
-        (spread, over_under) = getBetData(game['gameid'],  game['home_team'],  game['away_team'] )
+	try:
+            (spread, over_under) = getBetData(game['gameid'],  game['week'], game['home_team'],  game['away_team'] )
+        except:
+            continue
         _gameDataDict[game['gameid']]['away_team_spread'] = spread
         _gameDataDict[game['gameid']]['over_under'] = over_under
         try:
@@ -388,11 +463,11 @@ def getGameDataDict():
                     line_re = re.search(r'<td>(.*)</td>', line)
                     if(line_re):
                         val = line_re.group(1)
-                        if( fieldDict.has_key('Away %s'%key) ):
-                            _gameDataDict[game['gameid']][fieldDict['Away %s'%key]] = val
+                        if( _fieldDict.has_key('Away %s'%key) ):
+                            _gameDataDict[game['gameid']][_fieldDict['Away %s'%key]] = val
                         if(game_num == 1):
                             header_list.append('Away %s'%key)
-                            if(debug):
+                            if(_argDict['debug']):
                                 print ("Adding header Away %s"%key)
                         row_index = (row_index+1)%7
                         standard_line = True
@@ -405,27 +480,27 @@ def getGameDataDict():
                     line_re = re.search(r'<td>(.*)</td>', line)
                     if(line_re):
                       val = line_re.group(1)
-                      if( fieldDict.has_key('Home %s'%key) ):
-                          _gameDataDict[game['gameid']][fieldDict['Home %s'%key]] = val
+                      if( _fieldDict.has_key('Home %s'%key) ):
+                          _gameDataDict[game['gameid']][_fieldDict['Home %s'%key]] = val
                       if(game_num == 1):
                         header_list.append('Home %s'%key)
-                        if(debug):
+                        if(_argDict['debug']):
                           print ("Adding header Home %s"%key)
                       row_index = (row_index+1)%7
                       standard_line = True
                 if(not standard_line):
-                    if(debug):
+                    if(_argDict['debug']):
                         print "non standard line at row_index %d :"%row_index
                         print line
                     if(line.count('</table>') > 0):
-                        if(debug):
+                        if(_argDict['debug']):
                             print "boxscore table complete"
                         boxscoretable+=1
                     elif(line.count('</td>') > 0):
                         row_index = (row_index+1)%7
                         standard_line = True
                     elif(line.count('<td>') == 0):
-                        if(debug):
+                        if(_argDict['debug']):
                             print "nonstandard line contains data"
                         #for now it appears that these non standard lines are always #s
                         line_re = re.search(r'(\d+)', line)
@@ -435,19 +510,19 @@ def getGameDataDict():
                             val = line
                         if(row_index == 1):
                             #val = line
-                            if( fieldDict.has_key('Away %s'%key) ):
-                                _gameDataDict[game['gameid']][fieldDict['Away %s'%key]] = val
+                            if( _fieldDict.has_key('Away %s'%key) ):
+                                _gameDataDict[game['gameid']][_fieldDict['Away %s'%key]] = val
                             if(game_num == 1):
                               header_list.append('Away %s'%key)
-                              if(debug):
+                              if(_argDict['debug']):
                                 print ("Adding header Away %s"%key)
                         elif(row_index == 5):
                             #val = line
-                            if( fieldDict.has_key('Home %s'%key) ):
-                                _gameDataDict[game['gameid']][fieldDict['Home %s'%key]] = val
+                            if( _fieldDict.has_key('Home %s'%key) ):
+                                _gameDataDict[game['gameid']][_fieldDict['Home %s'%key]] = val
                             if(game_num == 1):
                               header_list.append('Home %s'%key)
-                              if(debug):
+                              if(_argDict['debug']):
                                 print ("Adding header Home %s"%key)
 
     #Can be used for DEBUG, TODO: create a standalone csv function
@@ -488,34 +563,35 @@ def getRecords ( gameEntry ):
     if ( month < 6 ):
         season -= 1
     print '%d%d'%(yr,gameEntry.week)
-    away_games_played = max ( _teamRecord[teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins']   + 
-                              _teamRecord[teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['losses'] + 
-                              _teamRecord[teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['ties'] - 1, 1)
-    home_games_played = max( _teamRecord[teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['wins']   + 
-                             _teamRecord[teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['losses'] + 
-                             _teamRecord[teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['ties'] - 1, 1)
+    away_games_played = max ( _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins']   + 
+                              _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['losses'] + 
+                              _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['ties'] - 1, 1)
+    home_games_played = max( _teamRecord[_teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['wins']   + 
+                             _teamRecord[_teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['losses'] + 
+                             _teamRecord[_teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['ties'] - 1, 1)
 
     if ( gameEntry.away_team_score > gameEntry.home_team_score ):
-        away_wins =  _teamRecord[teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins'] - 1
-        home_wins =  _teamRecord[teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['wins']
+        away_wins =  _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins'] - 1
+        home_wins =  _teamRecord[_teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['wins']
     elif( gameEntry.away_team_score < gameEntry.home_team_score ): 
-        away_wins =  _teamRecord[teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins']
-        home_wins =  _teamRecord[teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['wins'] - 1
+        away_wins =  _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins']
+        home_wins =  _teamRecord[_teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['wins'] - 1
     else:
-        away_wins =  _teamRecord[teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins'] - 1
-        home_wins =  _teamRecord[teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['wins'] - 1
+        away_wins =  _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins'] - 1
+        home_wins =  _teamRecord[_teams[gameEntry.home_team]]['%d%d'%(season,gameEntry.week)]['wins'] - 1
     
     gameEntry.away_team_record = (1.0 * away_wins)/away_games_played
     gameEntry.home_team_record = (1.0 * home_wins)/home_games_played
 
 def updateGameTable():
+    print "in updateGameTable"
     for gameid,game in _gameDataDict.iteritems():
         print gameid
         gameEntries = Games.objects.filter(gameid = gameid)
-        if ( gameEntries.count() > 0  and not _overwrite):
+        if ( gameEntries.count() > 0  and not _argDict['overwrite']):
             print "%d found, skipping"%gameid
             continue
-        elif ( gameEntries.count() > 0  and _overwrite):
+        elif ( gameEntries.count() > 0  and _argDict['overwrite']):
             print "%d found"%gameid
             gameEntry = gameEntries[0]
         else:
@@ -539,13 +615,14 @@ def updateGameTable():
                 if ( key not in ['away_team', 'home_team'] ):
                     gameEntry.__dict__[key] = val
                 else:
-                    gameEntry.__dict__[key] = teams.index(val)
+                    gameEntry.__dict__[key] = _teams.index(val)
         getRecords( gameEntry )
         # FIXME!! find real values
         gameEntry.stadium = 0
         gameEntry.fieldtype = 0
         gameEntry.away_coach = 0
         gameEntry.home_coach = 0
+	print "saving game"
         gameEntry.save()
     
 #
@@ -584,8 +661,8 @@ def updatePlayers():
     print "In updatePlayers"
     for player in _playerList:
         if ( Players.objects.filter(playerid=player['id']).count() == 0):
-            if ( Players.objects.filter(lastname = player['lastname'].lower(), firstname=player['firstname'].lower(), position=positions.index(player['position'])).count() != 0 ):
-                matchingPlayers = Players.objects.filter(lastname = player['lastname'].lower(), firstname=player['firstname'].lower(), position=positions.index(player['position']))
+            if ( Players.objects.filter(lastname = player['lastname'].lower(), firstname=player['firstname'].lower(), position=_positions.index(player['position'])).count() != 0 ):
+                matchingPlayers = Players.objects.filter(lastname = player['lastname'].lower(), firstname=player['firstname'].lower(), position=_positions.index(player['position']))
                 if ( not _mvOldPlayerIds ):
                     print "Warning!!! %d players with same name/position (%s %s) exist.  Atleast one with diff. id (%d vs %d).  Skipping"% (
                         matchingPlayers.count(), player['firstname'].lower(), player['lastname'].lower(), matchingPlayers[0].playerid, player['id']
@@ -599,17 +676,17 @@ def updatePlayers():
             playerInst.playerid = player['id']
             playerInst.lastname = player['lastname'].lower()
             playerInst.firstname = player['firstname'].lower()
-            playerInst.position =  positions.index(player['position'])
+            playerInst.position =  _positions.index(player['position'])
             # FIXME : Add Birthdate
             playerInst.birthdate = '1900-01-01'
             playerInst.save()
-        playerEntries = Players.objects.filter(lastname=player['lastname'].lower(), firstname=player['firstname'].lower(), position=positions.index(player['position']))
+        playerEntries = Players.objects.filter(lastname=player['lastname'].lower(), firstname=player['firstname'].lower(), position=_positions.index(player['position']))
         if ( playerEntries.count() > 1 ):
 	    combineMultipleEntries(playerEntries, player)
 
 def getStatsFromGamelogs():
     for player in _playerList:
-        # Different positions have different stats/data formatted differently
+        # Different _positions have different stats/data formatted differently
         position = player['position']
         hasStats = True
         if(position == 'RB' or position == 'FB'):
@@ -658,7 +735,7 @@ def getStatsFromGamelogs():
         seasonList.append(_currentSeason)
         # iterate over all seasons, looking for missing gameplayers
         for season in seasonList:
-            if (season < minyear or season > maxyear):
+            if (season < _argDict['minyear'] or season > _argDict['maxyear']):
                 continue
             try:
                 gamelog = url.urlopen('http://www.nfl.com/player/%s/%d/gamelogs/?season=%d'%(player['fullname'], player['id'], season))
@@ -669,8 +746,8 @@ def getStatsFromGamelogs():
             reg_season = False
             intable = False
             for line in gamelogarray:
-                if(line.count('Regular Season') > 0 and _seasonMode == 'regularseason' or 
-                     line.count('Postseason')>0 and _seasonMode == 'postseason'
+                if(line.count('Regular Season') > 0 and _argDict['seasonMode'] == 'regularseason' or 
+                     line.count('Postseason')>0 and _argDict['seasonMode'] == 'postseason'
                     ):
                   print 'Season Sect begins!'
                   reg_season = True
@@ -684,29 +761,36 @@ def getStatsFromGamelogs():
                     gameInst = Games.objects.filter(gameid = gameid)
                     playerInst = Players.objects.filter(playerid = player['id'])
                     if ( playerInst.count() == 0 ):
-                        if ( debug ):
+                        if ( _argDict['debug'] ):
                             print "player %d not in db, skipping"%player['id']
                         intable = False
                         continue
                     if ( gameInst.count() == 0 ):
-                        if ( debug ):
+                        if ( _argDict['debug'] ):
                             print "Game %d not in db, skipping"%gameid
                         intable = False
                         continue
                     gamePlayerQuery = GamePlayers.objects.filter(gameid = gameInst[0], playerid = playerInst[0] )
                     if( gamePlayerQuery.count() != 0 ):
-                        if (  not _overwrite and gameStatClass.objects.filter( gameplayer = gamePlayerQuery[0] ) ):
-                            if ( debug ):
+                        gameStatQuery = gameStatClass.objects.filter( gameplayer = gamePlayerQuery[0] )
+                        if (  not _argDict['overwrite'] and gameStatQuery.count() > 0 ):
+                            if ( _argDict['debug'] ):
                                 print "Game %d player %d already in db, skipping"%( gameid, player['id'] )
                             intable = False
                             continue
                         else:
-                            gamePlayerInst = GamePlayers.objects.filter(gameid = gameInst[0], playerid = playerInst[0])[0]
+                            gamePlayerInst = gamePlayerQuery[0]
+                            if ( gameStatQuery.count() > 0 ):
+                                gameStatInst = gameStatQuery[0]
+                            elif ( hasStats ):
+                                print "adding Game %d player %s to db"%( gameid, player['fullname'] )
+                                gameStatInst = gameStatClass()
+                                gameStatInst.gameplayer = gamePlayerInst
                     else:
                         gamePlayerInst = GamePlayers()
                         gamePlayerInst.gameid   = gameInst[0]
                         gamePlayerInst.playerid = playerInst[0]
-                    if ( hasStats ):
+                        gamePlayerInst.save()
                         print "adding Game %d player %s to db"%( gameid, player['fullname'] )
                         gameStatInst = gameStatClass()
                         gameStatInst.gameplayer = gamePlayerInst
@@ -728,12 +812,14 @@ def getStatsFromGamelogs():
                   elif(line.count('class="border-td"')>0):
                       intable = False
                       print 'saving gamestat for player %s'%player['fullname']
-                      gamePlayerInst.save()
                       if ( hasStats ):
-                          try: 
+                          if (not _argDict['stopOnFail']):
+                              try: 
+                                  gameStatInst.save()
+                              except:
+                                  print 'failed to save gamestat for player %s'%player['fullname']
+                          else:
                               gameStatInst.save()
-                          except:
-                              print 'failed to save gamestat for player %s'%player['fullname']
                 if(reg_season and line.count('TOTAL') > 0):
                     reg_season = False
                     if ( intable ):
@@ -741,26 +827,51 @@ def getStatsFromGamelogs():
                         print 'saving gamestat for player %s'%player['fullname']
                         gamePlayerInst.save()
                         if ( hasStats ):
-                            try: 
+                            if (not _argDict['stopOnFail']):
+                                try: 
+                                    gameStatInst.save()
+                                except:
+                                    print 'failed to save gamestat for player %s'%player['fullname']
+                            else:
                                 gameStatInst.save()
-                            except:
-                                print 'failed to save gamestat for player %s'%player['fullname']
         
+
+
+def parseArgs(parser):
+    args = parser.parse_args()
+    for key,val in args.__dict__.iteritems():
+	print "%s = %s"%(str(key), str(val))
+	if ( val != None ):
+            _argDict[key] = val
             
 #
 # Main
 #
+parser = argparse.ArgumentParser()
+parser.add_argument("--minyear", type=int)
+parser.add_argument("--maxyear", type=int)
+parser.add_argument("--minweek", type=int)
+parser.add_argument("--maxweek", type=int)
+parser.add_argument("--seasonMode", type=str)
+parser.add_argument("--debug", action="store_true")
+parser.add_argument("--overwrite", action="store_true")
+parser.add_argument("--updateGames", action="store_true")
+parser.add_argument("--updatePlayers", action="store_true")
+parser.add_argument("--stopOnFail", action="store_true")
+parseArgs(parser)
+
 
 # game data
-if ( _updateGames ):
+if ( _argDict['updateGames'] ):
     getAllGameLinks()
     getGameDictListFromGameLinks()
     getGameDataDict()
     updateGameTable()
 
 # player data
-if ( _updatePlayers ):
+if ( _argDict['updatePlayers'] ):
     getCurrentRosterLinks()
     getCurrentPlayersFromRosterLinks()
     updatePlayers()
     getStatsFromGamelogs()
+
