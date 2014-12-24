@@ -53,7 +53,7 @@ _argDict['updateGames'] = True
 _argDict['updatePlayers'] = False
 _argDict['stopOnFail'] = False
 
-_gameDataSource = 'wagetracker' #we have various sources for game data, some are better for different time periods
+_gameDataSource = 'default' #we have various sources for game data, some are better for different time periods
 _currentSeason = 2014
 _mvOldPlayerIds = True # Sometimes nfl.com changes the player ids, causing an enormous headache.
                     # the situation is hard to deal with since its also possible for 2 players with different
@@ -336,12 +336,18 @@ def getGameDictListFromGameLinks():
 #
 # This function is specifically looking for the spread in the csvs on repole.com
 #
-def getBetData(gameid, week, home, away):
+def getBetData(gameid, season, week, home, away):
     gameDataFuncs = {
                         'repole' : getBetDataFromRepole,
                         'wagetracker' : getBetDataFromWageTracker
                     }			
-    return gameDataFuncs[_gameDataSource](gameid, week, home, away)
+    if ( _gameDataSource != 'default' ):
+        gameDataSource = _gameDataSource
+    elif ( season < 2014 ): 
+        gameDataSource = 'repole'
+    else:
+        gameDataSource = 'wagetracker'
+    return gameDataFuncs[gameDataSource](gameid, week, home, away)
 
 def getBetDataFromWageTracker(gameid, week, home, away):
     print 'in getBetDataFromWageTracker home = %s away = %s'%(home, away)
@@ -403,6 +409,42 @@ def getBetDataFromRepole(gameid, week, home, away):
                     print "game found!"
                     return ( lineArray[lineIndex], lineArray[overUnderIndex] )
     print "game not found!"
+
+def getCoaches( gameid ):
+    game = _gameDataDict[gameid]
+    if ( game['year'] > 1999 and game['week'] > 0 ):
+      try:
+          page = url.urlopen('http://www.nfl.com/widget/gc/2011/tabs/cat-post-rate?gameId=%d'%(gameid)).readlines()
+      except:
+          print 'cant open http://www.nfl.com/widget/gc/2011/tabs/cat-post-rate?gameId=%d'%(gameid)
+          page = []
+    bf = ['','','']
+    coachnum = 0
+    coacharray = ['away', 'home']
+    for line in page:
+        bf[0] = bf[1]
+        bf[1] = bf[2]
+        bf[2] = line
+        if( bf[2].find('Head Coach') != -1):
+            line_re = re.search('name">(\S+)\s+(.*)</h3', bf[1])
+            if (line_re):
+                firstname = str(line_re.group(1)).lower()
+                lastname = str(line_re.group(2)).lower()
+                coachQuery = Coaches.objects.filter(firstname=firstname, lastname=lastname)
+                if (coachQuery.count() == 0 ):
+                    coach = Coaches()
+                    coach.lastname = lastname
+                    coach.firstname = firstname
+                    coach.save()
+                else:
+                    coach = coachQuery[0]
+                _gameDataDict[gameid]['%s_coach'%coacharray[coachnum]] = coach
+            coachnum+=1
+            if(coachnum == 2):
+                break
+    while ( coachnum < 2 ):
+        _gameDataDict[gameid]['%s_coach'%coacharray[coachnum]] = 0
+        coachnum+=1
                      
 def getGameDataDict():
     game_num = 0
@@ -419,8 +461,8 @@ def getGameDataDict():
         _gameDataDict[game['gameid']]['away_team'] = game['away_team']
         _gameDataDict[game['gameid']]['home_team'] = game['home_team']
         _gameDataDict[game['gameid']]['year'] = game['year']
-	try:
-            (spread, over_under) = getBetData(game['gameid'],  game['week'], game['home_team'],  game['away_team'] )
+        try:
+            (spread, over_under) = getBetData(game['gameid'],  game['year'], game['week'], game['home_team'],  game['away_team'] )
         except:
             continue
         _gameDataDict[game['gameid']]['away_team_spread'] = spread
@@ -433,7 +475,9 @@ def getGameDataDict():
             print "year %d week %d gameid %d not found"%(game['year'], game['week'], game['gameid'])
         boxscoretable = 0#our table is the second boxscoretable.  We increment to 3 when our table is complete
         row_index = 0
+        getCoaches( game['gameid'] )
         for line in page_array:
+            
             if(line.count('gc-box-score-table') > 0):
                 boxscoretable +=1
             elif(boxscoretable == 2):
@@ -620,8 +664,8 @@ def updateGameTable():
         # FIXME!! find real values
         gameEntry.stadium = 0
         gameEntry.fieldtype = 0
-        gameEntry.away_coach = 0
-        gameEntry.home_coach = 0
+        #gameEntry.away_coach = game['away_coach']
+        #gameEntry.home_coach = game['home_coach']
 	print "saving game"
         gameEntry.save()
     
