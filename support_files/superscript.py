@@ -48,10 +48,16 @@ _argDict['maxyear'] =2014
 _argDict['maxweek'] =15
 _argDict['debug'] = False
 _argDict['seasonMode'] = 'regularseason' # certain links follow a different format for regular/postseason
+_argDict['playerMode'] = 'current' # certain links follow a different format for regular/postseason
 _argDict['overwrite'] = False # Sometimes we want to overwrite everything, other times we dont :)
-_argDict['updateGames'] = True
+_argDict['updateGames'] = False
 _argDict['updatePlayers'] = False
 _argDict['stopOnFail'] = False
+# below swicthes are for manual moves/additions
+_argDict['playerid'] = 0 # this is only used when playerMode is 'cmdline'.  It allows me to add a specific player if they were overlooked for some reason
+_argDict['movePlayer'] = False
+_argDict['oldid'] = False
+_argDict['newid'] = False
 
 _gameDataSource = 'default' #we have various sources for game data, some are better for different time periods
 _currentSeason = 2014
@@ -67,7 +73,7 @@ _gameLinks = []
 _gameDictList = [] #basic game info
 _gameDataDict = {} #extended info/stats
 
-_rosterLinks = []
+_playerLinks = []
 _playerList = []
 
 #Keep order consistent with array ing views.py
@@ -669,6 +675,82 @@ def updateGameTable():
 	print "saving game"
         gameEntry.save()
     
+
+def getPlayers():
+    if (_argDict['playerMode'] == 'current'):
+        getCurrentRosterLinks()
+        getCurrentPlayersFromRosterLinks()
+    elif (_argDict['playerMode'] == 'historic'):
+        getHistoricalPlayers()
+    elif (_argDict['playerMode'] == 'cmdline'):
+        getPlayerFromPlayerId(_argDict['playerid'])
+
+def getPlayerFromPlayerId(playerid):
+    player = Players.objects.filter(playerid=playerid)[0]
+    _playerList.append({ 
+                         'fullname' : '%s%s'%(player.firstname,player.lastname), 
+                         'id' : playerid, 
+                         'lastname' : player.lastname, 
+                         'firstname' : player.firstname, 
+                         'position' : _positions[player.position] 
+                       })
+
+def getHistoricalPlayers():
+    #positions = ['quarterback', 'runningback', 'widereceiver', 'tightend', 'offensiveline', 'defensivelineman', 'linebacker', 'defensiveback','kicker','punter']
+    positions = ['quarterback', 'runningback', 'widereceiver', 'tightend' ] #'offensiveline', 'defensivelineman', 'linebacker', 'defensiveback','kicker','punter']
+    positionDict = {
+                    'quarterback':'QB', 
+                    'runningback':'RB', 
+                    'widereceiver':'WR', 
+                    'tightend':'TE', 
+                    'offensiveline' : 'OL', 
+                    'defensivelineman' : 'DL', 
+                    'linebacker' : 'LB', 
+                    'defensiveback' : 'DB',
+                    'kicker':'K',
+                    'punter':'P'
+                  }
+    for pos in positions:
+        #page = url.urlopen('http://www.nfl.com/players/search?category=position&filter=%s&playerType=historical&conference=ALL'%pos, 'r')
+        #for line in page.readlines():
+        #    if(line.find('span class="linkNavigation floatRight"> <strong>') != -1):
+        #        line_array = line.split('</a>') 
+        #        for tag in line_array:
+        #            link = tag.replace('>&nbsp|&nbsp<a href="', 'http://www.nfl.com')
+        #            link = str(re.sub('title="Go to page \d+.>\d+', '', link))
+        #            link = str(re.sub('.*strong', '', link))
+        #            link = str(re.sub('.*a href=.', 'http://www.nfl.com', link))
+        #            link = str(re.sub('&amp;', '&', link))
+        #            link = str(re.sub('filter=%s.*'%pos, 'filter=%s'%pos, link))
+        #            _playerLinks.append(link)
+        lastpage=False
+        for i in range(1, 100):
+            print 'grabbing historic %s'%pos
+            try:
+                page = url.urlopen('http://www.nfl.com/players/search?category=position&playerType=historical&d-447263-p=%d&filter=%s&conferenceAbbr=null'%(i, pos) )
+            except:
+                print 'cant open %s'%link
+                continue
+            for line in page.readlines():
+                if (line.find('No players found.') >= 0):
+                    print line
+                    lastpage=True
+                    break
+                #<td style="width:200px" class="tbdy"><a href="/player/dukeabbruzzi/2508149/profile">Abbruzzi, Duke</a></td>
+                line_re = re.search("href=\"\/player\/(\S+)/(\d+)/profile\">(\S+),\s+(\S+)</a>", line)
+                if( line_re ):
+                    fullname = str(line_re.group(1))
+                    id = int(line_re.group(2))
+                    lastname = str(line_re.group(3))
+                    firstname = str(line_re.group(4))
+                    position=positionDict[pos]
+                    player = { 'fullname' : fullname, 'id' : id, 'lastname' : lastname, 'firstname' : firstname, 'position' : position }
+                    _playerList.append(player) 
+            if ( lastpage ):
+                break
+            
+
+                
 #
 # for typical usage, we only need current players
 # since we will be running regularly
@@ -680,11 +762,11 @@ def getCurrentRosterLinks():
         if line_re:
             roster_link = re.subn('amp;','', str(line_re.group(1)))[0]
             print 'adding %s to roster links'%roster_link
-            _rosterLinks.append("http://www.nfl.com%s"%roster_link)
+            _playerLinks.append("http://www.nfl.com%s"%roster_link)
 
 def getCurrentPlayersFromRosterLinks():
     print 'In getCurrentPlayersFromRosterLinks'
-    for link in _rosterLinks:
+    for link in _playerLinks:
         print 'opening %s'%link
         fh = url.urlopen(link)
         for line in fh.readlines():
@@ -726,7 +808,7 @@ def updatePlayers():
             playerInst.save()
         playerEntries = Players.objects.filter(lastname=player['lastname'].lower(), firstname=player['firstname'].lower(), position=_positions.index(player['position']))
         if ( playerEntries.count() > 1 ):
-	    combineMultipleEntries(playerEntries, player)
+            combineMultipleEntries(playerEntries, player)
 
 def getStatsFromGamelogs():
     for player in _playerList:
@@ -897,14 +979,21 @@ parser.add_argument("--maxyear", type=int)
 parser.add_argument("--minweek", type=int)
 parser.add_argument("--maxweek", type=int)
 parser.add_argument("--seasonMode", type=str)
+parser.add_argument("--playerMode", type=str)
 parser.add_argument("--debug", action="store_true")
 parser.add_argument("--overwrite", action="store_true")
 parser.add_argument("--updateGames", action="store_true")
 parser.add_argument("--updatePlayers", action="store_true")
 parser.add_argument("--stopOnFail", action="store_true")
+parser.add_argument("--movePlayer", action="store_true")
+parser.add_argument("--playerid", type=int)
+parser.add_argument("--oldid", type=int)
+parser.add_argument("--newid", type=int)
 parseArgs(parser)
 
 
+if( _argDict['movePlayer'] ):
+    movePlayer( _argDict['oldid'], _argDict['newid'] )
 # game data
 if ( _argDict['updateGames'] ):
     getAllGameLinks()
@@ -914,8 +1003,7 @@ if ( _argDict['updateGames'] ):
 
 # player data
 if ( _argDict['updatePlayers'] ):
-    getCurrentRosterLinks()
-    getCurrentPlayersFromRosterLinks()
+    getPlayers()
     updatePlayers()
     getStatsFromGamelogs()
 

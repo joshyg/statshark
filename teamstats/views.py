@@ -292,7 +292,7 @@ def uniq(input):
 The below method will return what I believe 
 is the most popular player with a nonunique name
 """
-def resolve_nonunique_players(lastname, firstname):
+def resolve_nonunique_players(lastname, firstname, player_filter):
   if(lastname == 'peterson' and firstname == 'adrian'):
     return Players.objects.get(pk=25394) 
   elif(lastname == 'smith' and firstname == 'alex'):
@@ -308,7 +308,17 @@ def resolve_nonunique_players(lastname, firstname):
   elif(lastname == 'williams' and firstname == 'mike'):
     return Players.objects.get(pk=27702) 
   else:
-    return Players.objects.filter(lastname=lastname, firstname=firstname)[0]
+    # Unless specified, we should return the player with the most amount of games played
+    index = 0
+    max_games = 0
+    return_index = 0
+    for player in player_filter:
+        num_games = Gameplayers.objects.filter(player = player_filter[0]).count()
+        if ( num_games > max_games ):
+            max_games = num_games
+            return_index = index
+        index += 1
+    return player_filter[return_index]
 """
 The below method will try to keep track of popular nicknames.
 If the list gets too big will have to create a db
@@ -1679,7 +1689,7 @@ def submit(request):
               player = player_filter[0]
               nonunique = False
             else:
-              player = resolve_nonunique_players(lastname,firstname)
+              player = resolve_nonunique_players(lastname,firstname, player_filter)
               nonunique = True
             position = player.position
             positionstr = positions[position]
