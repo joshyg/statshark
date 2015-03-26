@@ -77,6 +77,10 @@ _playerLinks = []
 _playerList = []
 
 #Keep order consistent with array ing views.py
+_fieldTypes=[
+"grass",
+"turf"
+]
 _positions = [
   'C',
   'CB',
@@ -339,9 +343,91 @@ def getGameDictListFromGameLinks():
             gameDict['home_team'] = str(game_re.group(6))
             _gameDictList.append(gameDict)
 
-#
-# This function is specifically looking for the spread in the csvs on repole.com
-#
+def getGameExtras(gameid, season, week, home, away):
+    schedule = url.urlopen('http://www.pro-football-reference.com/years/%d/games.htm'%season)
+    print 'looking for boxscore for %s at %s week %d'%(away, home, week)
+    in_row = False #When true, we are in a row that could contain the relevent boxscore
+    row_index = 0
+    home_team_wins = True
+    box_score_found = False
+    for line in schedule.readlines():
+        if ( not in_row ):
+            # Week
+            line_re = re.search('csk="(\d+)"', line)
+            if (line_re):
+                tmp_week = int(line_re.group(1))
+
+            # BoxScore link
+            else:
+                #<td align="right"><a href="/boxscores/201409070atl.htm"><span class="bold_text">@Falcons 37</span><br>Saints 34</a></td>
+                line_re = re.search('a href="(/boxscores/\d+.*htm)">boxscore', line)
+                if (line_re):
+                    boxscore = str(line_re.group(1))
+                    in_row = True
+                    row_index = 0
+                    home_team_wins = True
+        else:
+            if ( row_index == 0 ):
+                line_re = re.search('>(.*)</a>', line)
+                if(line_re):
+                    winning_team = str(line_re.group(1)).lower()
+                    row_index+=1
+            elif ( row_index == 1 ):
+                if(line.find('@') >= 0):
+                    home_team_wins = False
+                row_index+=1
+            elif ( row_index == 2 ):
+                in_row = False
+                row_index = 0
+                line_re = re.search('>(.*)</a>', line)
+                if(line_re):
+                    losing_team = str(line_re.group(1)).lower()
+                    if (home_team_wins):
+                        tmp_home_team = winning_team
+                        tmp_away_team = losing_team
+                    else:
+                        tmp_home_team = losing_team
+                        tmp_away_team = winning_team
+                    if ( tmp_home_team.find(home) >= 0 and tmp_away_team.find(away) >= 0  and week == tmp_week ):
+                        box_score_found = True
+                        break
+    if ( box_score_found ):
+        print 'boxscore found for %s at %s'%(away, home)
+        getDataFromBoxScore(gameid, boxscore)
+
+
+def getDataFromBoxScore(gameid, boxscore):
+    print 'opening http://www.pro-football-reference.com/%s'%boxscore
+    page = url.urlopen('http://www.pro-football-reference.com/%s'%boxscore)                    
+    surface = False
+    weather = False
+    temperature = -100
+    for line in page.readlines():
+        if(line.find('<b>Surface</b>') >= 0):
+            surface = True
+        elif(line.find('<b>Weather</b>') >= 0):
+            weather = True
+            print 'weather found'
+        elif(surface):
+            surface = False
+            if (line.find('turf') >= 0 ):
+                surfaceType = _fieldTypes.index('turf') 
+            else:
+                surfaceType = _fieldTypes.index('grass') 
+        elif(weather):
+            print line
+            weather = False
+            line_re = re.search('(\d+)\s+degrees', line) 
+            if (line_re):
+                temperature=int(line_re.group(1))
+                break
+    _gameDataDict[gameid]['fieldtype'] = surfaceType
+    _gameDataDict[gameid]['temperature']   = temperature
+            
+        
+            
+            
+
 def getBetData(gameid, season, week, home, away):
     gameDataFuncs = {
                         'repole' : getBetDataFromRepole,
@@ -482,6 +568,7 @@ def getGameDataDict():
         boxscoretable = 0#our table is the second boxscoretable.  We increment to 3 when our table is complete
         row_index = 0
         getCoaches( game['gameid'] )
+        getGameExtras( game['gameid'], game['year'], game['week'], game['home_team'],  game['away_team'] )
         for line in page_array:
             
             if(line.count('gc-box-score-table') > 0):
@@ -648,6 +735,13 @@ def updateGameTable():
             print "%d not found"%gameid
             gameEntry = Games()
             gameEntry.gameid = gameid
+        # Certain data is stored in a separate GameExtras table
+        gameExtraQuery = GameExtras.objects.filter(game = gameEntry)
+        if ( gameExtraQuery.count() == 0 ):
+            gameExtra = GameExtras()
+            gameExtra.game = gameEntry
+        else:
+            gameExtra = gameExtraQuery[0]
 
         yr = int(str(gameid)[0:4])
         month = int(str(gameid)[4:6])
@@ -660,20 +754,22 @@ def updateGameTable():
             gameEntry.season = yr - 1
 
         for key,val in game.iteritems():
-            if ( gameEntry.__dict__.has_key(key) ):
+            if( gameEntry.__dict__.has_key(key) ):
                 print 'setting %s to %s'%(str(key),str(val))
                 if ( key not in ['away_team', 'home_team'] ):
                     gameEntry.__dict__[key] = val
                 else:
                     gameEntry.__dict__[key] = _teams.index(val)
+            elif( gameExtra.__dict__.has_key(key) ):
+                print 'setting %s to %s'%(str(key),str(val))
+                gameExtra.__dict__[key] = val
         getRecords( gameEntry )
         # FIXME!! find real values
         gameEntry.stadium = 0
-        gameEntry.fieldtype = 0
-        #gameEntry.away_coach = game['away_coach']
-        #gameEntry.home_coach = game['home_coach']
-	print "saving game"
+        #gameEntry.fieldtype = 0
+        print "saving game"
         gameEntry.save()
+        gameExtra.save()
     
 
 def getPlayers():

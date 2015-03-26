@@ -27,12 +27,12 @@ class Games(models.Model):
 
 class GameExtras(models.Model):
     game = models.OneToOneField(Games,primary_key=True)
-    temperature = models.IntegerField()
-    humidity = models.IntegerField()
-    windspeed = models.IntegerField()
-    precipitation = models.IntegerField()
-    attendance = models.IntegerField()
-    starttime = models.TimeField()
+    temperature = models.IntegerField(default=-100)
+    humidity = models.IntegerField(default=0)
+    windspeed = models.IntegerField(default=0)
+    precipitation = models.IntegerField(default=0)
+    attendance = models.IntegerField(default=0)
+    starttime = models.TimeField(default='00:00')
   
 class GameStreaks(models.Model):
     game = models.OneToOneField(Games,primary_key=True)
