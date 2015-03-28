@@ -48,7 +48,7 @@ _argDict['maxyear'] =2014
 _argDict['maxweek'] =15
 _argDict['debug'] = False
 _argDict['seasonMode'] = 'regularseason' # certain links follow a different format for regular/postseason
-_argDict['playerMode'] = 'current' # certain links follow a different format for regular/postseason
+_argDict['playerMode'] = 'current' # hitoric player data is found on different pages than current player data.
 _argDict['overwrite'] = False # Sometimes we want to overwrite everything, other times we dont :)
 _argDict['updateGames'] = False
 _argDict['updatePlayers'] = False
@@ -1102,4 +1102,5 @@ if ( _argDict['updatePlayers'] ):
     getPlayers()
     updatePlayers()
     getStatsFromGamelogs()
+
 
