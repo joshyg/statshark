@@ -3,7 +3,7 @@ from django.shortcuts import render_to_response, get_object_or_404
 from django.template import RequestContext
 from django.core.context_processors import csrf
 from teamstats.models import Games,Players,GamePlayers,QbGameStats,RbWrGameStats,Coaches,DefGameStats,GameExtras,GameStreaks
-from django.utils import simplejson
+import json
 from django.http import HttpResponse
 from decimal import Decimal
 from django.db import models
@@ -2136,7 +2136,7 @@ def submit(request):
   #response['player_table'] = []
   #print response['player_table']
   print 'about to converrt to json'
-  json_str = simplejson.dumps(response)
+  json_str = json.dumps(response)
   #print 'json_str:'
   #print json_str
   print 'converted  to json'
