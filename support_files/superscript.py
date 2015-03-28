@@ -34,6 +34,7 @@ from django import db
 from teamstats.models import *
 from django.db.models import *
 from decimal import *
+import sqlite3
 
 
 
@@ -57,6 +58,7 @@ _argDict['stopOnFail'] = False
 _argDict['playerid'] = 0 # this is only used when playerMode is 'cmdline'.  It allows me to add a specific player if they were overlooked for some reason
 _argDict['movePlayer'] = False
 _argDict['oldid'] = False
+_argDict['migrate'] = ''
 _argDict['newid'] = False
 
 _gameDataSource = 'default' #we have various sources for game data, some are better for different time periods
@@ -242,6 +244,39 @@ _decimalFields = ['away_team_spread', 'over_under', 'away_team_record', 'home_te
 #functions
 
 #
+# The folowing should be rarely used, but sometimes we have to start a db from scratch
+# and accessing the raw sql could be  the best way
+#
+def migrateDb ( ):
+    dbDict = {}
+    dbDict['teamstats_coaches'] = Coaches
+    dbDict['teamstats_defgamestats'] = DefGameStats
+    dbDict['teamstats_gameextras'] = GameExtras
+    dbDict['teamstats_gameplayers'] = GamePlayers
+    dbDict['teamstats_games'] = Games
+    dbDict['teamstats_gamestreaks'] = GameStreaks
+    dbDict['teamstats_players'] = Players
+    dbDict['teamstats_qbgamestats'] = QbGameStats
+    dbDict['teamstats_rbwrgamestats'] = RbWrGameStats
+    conn = sqlite3.connect( _argDict['migrate'] )
+    c = conn.cursor()
+    for table, object in dbDict.iteritems():
+        fieldStr = ''
+        for field in object.objects.all()[0].__dict__.iterkeys():
+            if field in [ '_state' ]:
+                continue
+            fieldStr += "%s," % field
+        print " select %s from %s " % ( fieldStr[:-1], table ) 
+        for row in c.execute( "select %s from %s" % ( fieldStr[:-1], table ) ):
+            for i in range( len( row ) ):
+                print row[ i ]
+            obj = object()
+            i = 0
+            for field in obj.__dict__.iterkeys():
+                obj.__dict__[field] = row[i]
+                i+=1
+            obj.save() 
+
 # If nfl.com changes the player id in the gamelog url, we change too
 def movePlayer ( oldid, newid ):
     oldplayer = Players.objects.filter(playerid = oldid)[0]
@@ -1085,11 +1120,23 @@ parser.add_argument("--movePlayer", action="store_true")
 parser.add_argument("--playerid", type=int)
 parser.add_argument("--oldid", type=int)
 parser.add_argument("--newid", type=int)
+parser.add_argument("--migrate", type=str)
 parseArgs(parser)
 
 
+# allow for migration of raw db to the db currenlty used
+# Currently this only supports migrations from sqlite
+if( _argDict['migrate'] != '' ):
+    migrateDb()
+
+# Manually move a player to a new id.
+# We typically use the id from our parsing source,
+# whether it be nfl.com, nflreference.  But this can change from
+# underneath us, or we can change our source, in which case this
+# utility comes  in handy.
 if( _argDict['movePlayer'] ):
     movePlayer( _argDict['oldid'], _argDict['newid'] )
+
 # game data
 if ( _argDict['updateGames'] ):
     getAllGameLinks()
