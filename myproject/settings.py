@@ -4,14 +4,12 @@ import os
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
-if(os.getcwd().find('svn_nflbacktest') != -1):
-  mode = 'local'  
+CURRENT_PATH = os.path.abspath(__file__)
+if ( CURRENT_PATH.find('nflbacktest_dev') == -1 ):
+  mode = 'dev'
 else:
-  mode = 'server'
-if(mode == 'server'):
-  MY_PROJECT_ROOT = '/home/joshyg/webapps/nflbacktest/myproject/'
-else:
-  MY_PROJECT_ROOT = '/home/joshyg/nflbacktest/svn_nflbacktest/nflbacktest/'
+  mode = 'production'
+MY_PROJECT_ROOT = '%s/../' % CURRENT_PATH
 
 
 ADMINS = (
@@ -20,7 +18,7 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-if(mode == 'server'):
+if(mode == 'production'):
 
   DATABASES = {
       'default': {
