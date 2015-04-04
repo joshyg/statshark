@@ -23,20 +23,21 @@ It is better to duplicate work and have the script be independent than vice vers
 import argparse
 import django
 import sys,os
-import urllib2 as url
+try:
+    import urllib2 as url
+except:
+    import urllib3 as url
 import re
 import subprocess
-sys.path.append('/home/joshyg/webapps/nflbacktest/myproject')
+sys.path.append( '%s/../' % os.path.dirname( os.path.abspath( __file__ ) ) )
 from myproject import settings
-from django.core.management import setup_environ
-setup_environ(settings)
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "myproject.settings") 
 from django import db
 from teamstats.models import *
 from django.db.models import *
 from decimal import *
 import sqlite3
-
-
+django.setup()
 
 # 
 # Input params
@@ -249,33 +250,71 @@ _decimalFields = ['away_team_spread', 'over_under', 'away_team_record', 'home_te
 #
 def migrateDb ( ):
     dbDict = {}
+    dbDict['teamstats_games'] = Games
+    dbDict['teamstats_players'] = Players
     dbDict['teamstats_coaches'] = Coaches
     dbDict['teamstats_defgamestats'] = DefGameStats
     dbDict['teamstats_gameextras'] = GameExtras
     dbDict['teamstats_gameplayers'] = GamePlayers
-    dbDict['teamstats_games'] = Games
     dbDict['teamstats_gamestreaks'] = GameStreaks
-    dbDict['teamstats_players'] = Players
     dbDict['teamstats_qbgamestats'] = QbGameStats
     dbDict['teamstats_rbwrgamestats'] = RbWrGameStats
     conn = sqlite3.connect( _argDict['migrate'] )
     c = conn.cursor()
-    for table, object in dbDict.iteritems():
+    # must order table query because we cant wuery gameplayers before games, etc.
+    tables = [ 'teamstats_games', 'teamstats_players', 'teamstats_gameplayers',
+               'teamstats_coaches', 'teamstats_gameextras','teamstats_gamestreaks', 
+               'teamstats_defgamestats', 'teamstats_qbgamestats', 'teamstats_rbwrgamestats' ]
+    uniqueIds = [ ['gameid'], ['playerid'], ['gameid_id','playerid_id'],
+                       ['firstname', 'lastname'], ['game_id'], ['game_id'], 
+                       ['gameplayer_id'], ['gameplayer_id'], ['gameplayer_id'] ] 
+    uniqueIdDict = dict( zip( tables, uniqueIds ) )
+    #FIXME: skipping these tables for now since they are done
+    skipTables =  [ 'teamstats_games', 'teamstats_players' ]
+
+    for table in tables:
+        if ( table in skipTable ):
+            continue
+        object = dbDict[table]
         fieldStr = ''
-        for field in object.objects.all()[0].__dict__.iterkeys():
+        fieldArray = []
+        objCache = []
+        index = 0
+        for fieldTuple in c.execute('PRAGMA table_info(%s)'%table).fetchall():
+            field = fieldTuple[1]
+            fieldArray.append(field)
             if field in [ '_state' ]:
                 continue
             fieldStr += "%s," % field
-        print " select %s from %s " % ( fieldStr[:-1], table ) 
+        print ( " select %s from %s " % ( fieldStr[0:-1], table ) )
         for row in c.execute( "select %s from %s" % ( fieldStr[:-1], table ) ):
-            for i in range( len( row ) ):
-                print row[ i ]
+            index += 1
             obj = object()
             i = 0
-            for field in obj.__dict__.iterkeys():
-                obj.__dict__[field] = row[i]
+            for field in fieldArray:
+                if field in [ '_state' ]:
+                    continue
+                if ( field in _decimalFields ):
+                    rowStr = str( row[i] )
+                    if( rowStr.find('.') == -1 ):
+                        rowStr += ".0"
+                    obj.__dict__[field] = Decimal( rowStr )
+                else:
+                    obj.__dict__[field] = row[i]
                 i+=1
-            obj.save() 
+            #for key,val in obj.__dict__.items():
+            #    print( "%s = %s"%(str(key), str(val)) )
+            kwDict = {}
+            for id in uniqueIdDict[ table ]:
+                kwDict[ id ] = obj.__dict__[ id ] 
+            if ( object.objects.filter( **kwDict ).count() == 0 ):
+                objCache.append(obj) 
+                #obj.save() 
+            if ( index % 30 == 0 ):
+                object.objects.bulk_create(objCache)
+                objCache = []
+        # one last bulk create for any object still in the cache
+        object.objects.bulk_create(objCache)
 
 # If nfl.com changes the player id in the gamelog url, we change too
 def movePlayer ( oldid, newid ):
@@ -298,7 +337,7 @@ def movePlayer ( oldid, newid ):
             gameMoved = True
         if (gameMoved):
             oldplayer.delete()
-            print "%s %s  moved to new id"%(newplayer.firstname, newplayer.lastname)
+            print ( "%s %s  moved to new id" %(newplayer.firstname, newplayer.lastname) )
 
 #
 # If for some reason we have created two entries for a player, combine
@@ -315,7 +354,7 @@ def combineMultipleEntries( playerEntries, player ):
                     gameMoved = True
                 if (gameMoved):
                     entry.delete()
-                    print "%s %s  combined multiple entries and moved to new id"%(currentEntry.firstname, currentEntry.lastname)
+                    print ( "%s %s  combined multiple entries and moved to new id" %(currentEntry.firstname, currentEntry.lastname) )
 
             
 
@@ -356,7 +395,7 @@ def getTeamRecordsFromScoreboard(scoreboard = [], yr=1, wk=1):
             wins = int(line_re.group(2))
             losses = int(line_re.group(3))
             ties = int(line_re.group(4))
-            print 'wk %d team %s wins = %d'%(wk, _team_abbrevs[team], wins)
+            print( 'wk %d team %s wins = %d'%(wk, _team_abbrevs[team], wins) )
             _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)] = { 'wins': 0, 'losses' : 0, 'ties' : 0 }
             if ( wins + losses + ties > 0 ) :
                 _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)]['wins'] = wins
@@ -380,7 +419,7 @@ def getGameDictListFromGameLinks():
 
 def getGameExtras(gameid, season, week, home, away):
     schedule = url.urlopen('http://www.pro-football-reference.com/years/%d/games.htm'%season)
-    print 'looking for boxscore for %s at %s week %d'%(away, home, week)
+    print( 'looking for boxscore for %s at %s week %d'%(away, home, week) )
     in_row = False #When true, we are in a row that could contain the relevent boxscore
     row_index = 0
     home_team_wins = True
@@ -427,12 +466,12 @@ def getGameExtras(gameid, season, week, home, away):
                         box_score_found = True
                         break
     if ( box_score_found ):
-        print 'boxscore found for %s at %s'%(away, home)
+        print( 'boxscore found for %s at %s'%(away, home) )
         getDataFromBoxScore(gameid, boxscore)
 
 
 def getDataFromBoxScore(gameid, boxscore):
-    print 'opening http://www.pro-football-reference.com/%s'%boxscore
+    print( 'opening http://www.pro-football-reference.com/%s'%boxscore )
     page = url.urlopen('http://www.pro-football-reference.com/%s'%boxscore)                    
     surface = False
     weather = False
@@ -442,7 +481,7 @@ def getDataFromBoxScore(gameid, boxscore):
             surface = True
         elif(line.find('<b>Weather</b>') >= 0):
             weather = True
-            print 'weather found'
+            print( 'weather found' )
         elif(surface):
             surface = False
             if (line.find('turf') >= 0 ):
@@ -450,7 +489,7 @@ def getDataFromBoxScore(gameid, boxscore):
             else:
                 surfaceType = _fieldTypes.index('grass') 
         elif(weather):
-            print line
+            print ( line )
             weather = False
             line_re = re.search('(\d+)\s+degrees', line) 
             if (line_re):
@@ -477,7 +516,7 @@ def getBetData(gameid, season, week, home, away):
     return gameDataFuncs[gameDataSource](gameid, week, home, away)
 
 def getBetDataFromWageTracker(gameid, week, home, away):
-    print 'in getBetDataFromWageTracker home = %s away = %s'%(home, away)
+    print( 'in getBetDataFromWageTracker home = %s away = %s'%(home, away) )
     #print('week,away_team,away_team_score,away_team_spread,away_team_ml,over,under,home_team,home_team_score,home_team_spread,home_team_ml,total') 
     week_with_preseason = week+5
     page = url.urlopen('http://www.wagertracker.com/Odds.aspx?week=%d&sport=NFL'%week_with_preseason)
@@ -511,7 +550,7 @@ def getBetDataFromRepole(gameid, week, home, away):
     homeIndex = 3
     lineIndex = 5
     overUnderIndex = 6
-    print "%s %s %d"%(away, home, gameid)
+    print( "%s %s %d"%(away, home, gameid) )
     if ( _argDict['seasonMode'] == 'regularseason' ):
         csvPrefix = 'nfl'
     elif ( _argDict['seasonMode'] == 'postseason' ):
@@ -533,9 +572,9 @@ def getBetDataFromRepole(gameid, week, home, away):
                 tmpAway = lineArray[awayIndex].split()[-1].lower()
                 tmpHome = lineArray[homeIndex].split()[-1].lower()
                 if( tmpAway == away and tmpHome == home ):
-                    print "game found!"
+                    print( "game found!" )
                     return ( lineArray[lineIndex], lineArray[overUnderIndex] )
-    print "game not found!"
+    print( "game not found!" )
 
 def getCoaches( gameid ):
     game = _gameDataDict[gameid]
@@ -543,7 +582,7 @@ def getCoaches( gameid ):
       try:
           page = url.urlopen('http://www.nfl.com/widget/gc/2011/tabs/cat-post-rate?gameId=%d'%(gameid)).readlines()
       except:
-          print 'cant open http://www.nfl.com/widget/gc/2011/tabs/cat-post-rate?gameId=%d'%(gameid)
+          print( 'cant open http://www.nfl.com/widget/gc/2011/tabs/cat-post-rate?gameId=%d'%(gameid) )
           page = []
     bf = ['','','']
     coachnum = 0
@@ -579,7 +618,7 @@ def getGameDataDict():
     for game in _gameDictList:
         if ( not _argDict['overwrite'] ):
             if ( Games.objects.filter( gameid = game['gameid'] ).count() > 0 ):
-                print '%d exists, skipping'%game['gameid']
+                print( '%d exists, skipping'%game['gameid'] )
                 continue
    
         game_num += 1
@@ -599,7 +638,7 @@ def getGameDataDict():
             page_array = page.readlines()
         except:
             page_array = [] 
-            print "year %d week %d gameid %d not found"%(game['year'], game['week'], game['gameid'])
+            print( "year %d week %d gameid %d not found"%(game['year'], game['week'], game['gameid']) )
         boxscoretable = 0#our table is the second boxscoretable.  We increment to 3 when our table is complete
         row_index = 0
         getCoaches( game['gameid'] )
@@ -662,18 +701,18 @@ def getGameDataDict():
                       standard_line = True
                 if(not standard_line):
                     if(_argDict['debug']):
-                        print "non standard line at row_index %d :"%row_index
-                        print line
+                        print( "non standard line at row_index %d :"%row_index )
+                        print ( line )
                     if(line.count('</table>') > 0):
                         if(_argDict['debug']):
-                            print "boxscore table complete"
+                            print( "boxscore table complete" )
                         boxscoretable+=1
                     elif(line.count('</td>') > 0):
                         row_index = (row_index+1)%7
                         standard_line = True
                     elif(line.count('<td>') == 0):
                         if(_argDict['debug']):
-                            print "nonstandard line contains data"
+                            print( "nonstandard line contains data" )
                         #for now it appears that these non standard lines are always #s
                         line_re = re.search(r'(\d+)', line)
                         if(line_re):
@@ -734,7 +773,7 @@ def getRecords ( gameEntry ):
     season = yr
     if ( month < 6 ):
         season -= 1
-    print '%d%d'%(yr,gameEntry.week)
+    print( '%d%d'%(yr,gameEntry.week) )
     away_games_played = max ( _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins']   + 
                               _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['losses'] + 
                               _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['ties'] - 1, 1)
@@ -756,18 +795,18 @@ def getRecords ( gameEntry ):
     gameEntry.home_team_record = (1.0 * home_wins)/home_games_played
 
 def updateGameTable():
-    print "in updateGameTable"
-    for gameid,game in _gameDataDict.iteritems():
-        print gameid
+    print( "in updateGameTable" )
+    for gameid,game in _gameDataDict.items():
+        print ( gameid )
         gameEntries = Games.objects.filter(gameid = gameid)
         if ( gameEntries.count() > 0  and not _argDict['overwrite']):
-            print "%d found, skipping"%gameid
+            print( "%d found, skipping"%gameid )
             continue
         elif ( gameEntries.count() > 0  and _argDict['overwrite']):
-            print "%d found"%gameid
+            print( "%d found"%gameid )
             gameEntry = gameEntries[0]
         else:
-            print "%d not found"%gameid
+            print( "%d not found"%gameid )
             gameEntry = Games()
             gameEntry.gameid = gameid
         # Certain data is stored in a separate GameExtras table
@@ -788,21 +827,21 @@ def updateGameTable():
         else:
             gameEntry.season = yr - 1
 
-        for key,val in game.iteritems():
+        for key,val in game.items():
             if( gameEntry.__dict__.has_key(key) ):
-                print 'setting %s to %s'%(str(key),str(val))
+                print( 'setting %s to %s'%(str(key),str(val)) )
                 if ( key not in ['away_team', 'home_team'] ):
                     gameEntry.__dict__[key] = val
                 else:
                     gameEntry.__dict__[key] = _teams.index(val)
             elif( gameExtra.__dict__.has_key(key) ):
-                print 'setting %s to %s'%(str(key),str(val))
+                print( 'setting %s to %s'%(str(key),str(val)) )
                 gameExtra.__dict__[key] = val
         getRecords( gameEntry )
         # FIXME!! find real values
         gameEntry.stadium = 0
         #gameEntry.fieldtype = 0
-        print "saving game"
+        print( "saving game" )
         gameEntry.save()
         gameExtra.save()
     
@@ -856,15 +895,15 @@ def getHistoricalPlayers():
         #            _playerLinks.append(link)
         lastpage=False
         for i in range(1, 100):
-            print 'grabbing historic %s'%pos
+            print( 'grabbing historic %s'%pos )
             try:
                 page = url.urlopen('http://www.nfl.com/players/search?category=position&playerType=historical&d-447263-p=%d&filter=%s&conferenceAbbr=null'%(i, pos) )
             except:
-                print 'cant open %s'%link
+                print( 'cant open %s'%link )
                 continue
             for line in page.readlines():
                 if (line.find('No players found.') >= 0):
-                    print line
+                    print ( line )
                     lastpage=True
                     break
                 #<td style="width:200px" class="tbdy"><a href="/player/dukeabbruzzi/2508149/profile">Abbruzzi, Duke</a></td>
@@ -886,19 +925,19 @@ def getHistoricalPlayers():
 # for typical usage, we only need current players
 # since we will be running regularly
 def getCurrentRosterLinks():
-    print 'in getCurrentRosterLinks'
+    print( 'in getCurrentRosterLinks' )
     fh = url.urlopen('http://www.nfl.com/players/search?category=team&playerType=current')
     for line in fh.readlines():
         line_re = re.search("a href=\"(.*players.search.category=team.*;filter.*playerType=current)\"", line)
         if line_re:
             roster_link = re.subn('amp;','', str(line_re.group(1)))[0]
-            print 'adding %s to roster links'%roster_link
+            print( 'adding %s to roster links'%roster_link )
             _playerLinks.append("http://www.nfl.com%s"%roster_link)
 
 def getCurrentPlayersFromRosterLinks():
-    print 'In getCurrentPlayersFromRosterLinks'
+    print( 'In getCurrentPlayersFromRosterLinks' )
     for link in _playerLinks:
-        print 'opening %s'%link
+        print( 'opening %s'%link )
         fh = url.urlopen(link)
         for line in fh.readlines():
             # <td><a href="/player/kendallwright/2532977/profile">Wright, Kendall</a></td>
@@ -915,20 +954,20 @@ def getCurrentPlayersFromRosterLinks():
                 _playerList.append(player) 
 
 def updatePlayers():
-    print "In updatePlayers"
+    print( "In updatePlayers" )
     for player in _playerList:
         if ( Players.objects.filter(playerid=player['id']).count() == 0):
             if ( Players.objects.filter(lastname = player['lastname'].lower(), firstname=player['firstname'].lower(), position=_positions.index(player['position'])).count() != 0 ):
                 matchingPlayers = Players.objects.filter(lastname = player['lastname'].lower(), firstname=player['firstname'].lower(), position=_positions.index(player['position']))
                 if ( not _mvOldPlayerIds ):
-                    print "Warning!!! %d players with same name/position (%s %s) exist.  Atleast one with diff. id (%d vs %d).  Skipping"% (
+                    print( "Warning!!! %d players with same name/position (%s %s) exist.  Atleast one with diff. id (%d vs %d).  Skipping"% ( 
                         matchingPlayers.count(), player['firstname'].lower(), player['lastname'].lower(), matchingPlayers[0].playerid, player['id']
-                    )
+                    ) )
                     continue
                 else:
                     movePlayer( matchingPlayers[0].playerid, player['id'] ) 
                     continue
-            print 'Adding %s %s to player db'%( player['firstname'].lower(), player['lastname'].lower() )
+            print( 'Adding %s %s to player db'%( player['firstname'].lower(), player['lastname'].lower() ) )
             playerInst = Players()
             playerInst.playerid = player['id']
             playerInst.lastname = player['lastname'].lower()
@@ -963,7 +1002,7 @@ def getStatsFromGamelogs():
             gameStatInst = DefGameStats()
             gameStatClass = DefGameStats
         else:
-            print "No stat collection for position %s"%position
+            print( "No stat collection for position %s"%position )
             hasStats = False
 
         #First find all seasons a player played in
@@ -971,22 +1010,22 @@ def getStatsFromGamelogs():
             gamelog = url.urlopen('http://www.nfl.com/player/%s/%d/gamelogs/'%(player['fullname'],player['id']))
             gamelogarray = gamelog.readlines()
         except:
-            print 'cant open http://www.nfl.com/player/%s/%d/gamelogs/'%(player['fullname'],player['id'])
+            print( 'cant open http://www.nfl.com/player/%s/%d/gamelogs/'%(player['fullname'],player['id']) )
             continue
         season_select = False
         past_seasons = []
         for line in gamelogarray:
             if(line.count('<strong>Game Log:') > 0):
               season_select = True
-              print 'season select begins!'
+              print( 'season select begins!' )
             elif(season_select and line.count('<option value=') > 0):
               line_re = re.search(r'value=.(\d+).>',line)
               if(line_re):
                 past_seasons.append(int(line_re.group(1)))
             elif(season_select and line.count('</select>') > 0):
               season_select = False
-              print 'past seasons:'
-              print past_seasons
+              print( 'past seasons:' )
+              print ( past_seasons )
 
         seasonList = past_seasons
         seasonList.append(_currentSeason)
@@ -998,7 +1037,7 @@ def getStatsFromGamelogs():
                 gamelog = url.urlopen('http://www.nfl.com/player/%s/%d/gamelogs/?season=%d'%(player['fullname'], player['id'], season))
                 gamelogarray = gamelog.readlines()
             except:
-                print 'cant open http://www.nfl.com/player/%s/%d/gamelogs/season=%d'%(player['fullname'],player['id'],season)
+                print( 'cant open http://www.nfl.com/player/%s/%d/gamelogs/season=%d'%(player['fullname'],player['id'],season) )
                 continue
             reg_season = False
             intable = False
@@ -1006,7 +1045,7 @@ def getStatsFromGamelogs():
                 if(line.count('Regular Season') > 0 and _argDict['seasonMode'] == 'regularseason' or 
                      line.count('Postseason')>0 and _argDict['seasonMode'] == 'postseason'
                     ):
-                  print 'Season Sect begins!'
+                  print( 'Season Sect begins!' )
                   reg_season = True
                 elif(reg_season and line.count('gamecenter') > 0): 
                   intable = True
@@ -1019,12 +1058,12 @@ def getStatsFromGamelogs():
                     playerInst = Players.objects.filter(playerid = player['id'])
                     if ( playerInst.count() == 0 ):
                         if ( _argDict['debug'] ):
-                            print "player %d not in db, skipping"%player['id']
+                            print( "player %d not in db, skipping"%player['id'] )
                         intable = False
                         continue
                     if ( gameInst.count() == 0 ):
                         if ( _argDict['debug'] ):
-                            print "Game %d not in db, skipping"%gameid
+                            print( "Game %d not in db, skipping"%gameid )
                         intable = False
                         continue
                     gamePlayerQuery = GamePlayers.objects.filter(gameid = gameInst[0], playerid = playerInst[0] )
@@ -1032,7 +1071,7 @@ def getStatsFromGamelogs():
                         gameStatQuery = gameStatClass.objects.filter( gameplayer = gamePlayerQuery[0] )
                         if (  not _argDict['overwrite'] and gameStatQuery.count() > 0 ):
                             if ( _argDict['debug'] ):
-                                print "Game %d player %d already in db, skipping"%( gameid, player['id'] )
+                                print( "Game %d player %d already in db, skipping"%( gameid, player['id'] ) )
                             intable = False
                             continue
                         else:
@@ -1040,7 +1079,7 @@ def getStatsFromGamelogs():
                             if ( gameStatQuery.count() > 0 ):
                                 gameStatInst = gameStatQuery[0]
                             elif ( hasStats ):
-                                print "adding Game %d player %s to db"%( gameid, player['fullname'] )
+                                print( "adding Game %d player %s to db"%( gameid, player['fullname'] ) )
                                 gameStatInst = gameStatClass()
                                 gameStatInst.gameplayer = gamePlayerInst
                     else:
@@ -1048,7 +1087,7 @@ def getStatsFromGamelogs():
                         gamePlayerInst.gameid   = gameInst[0]
                         gamePlayerInst.playerid = playerInst[0]
                         gamePlayerInst.save()
-                        print "adding Game %d player %s to db"%( gameid, player['fullname'] )
+                        print( "adding Game %d player %s to db"%( gameid, player['fullname'] ) )
                         gameStatInst = gameStatClass()
                         gameStatInst.gameplayer = gamePlayerInst
                     
@@ -1068,27 +1107,27 @@ def getStatsFromGamelogs():
                             fieldIndex += 1
                   elif(line.count('class="border-td"')>0):
                       intable = False
-                      print 'saving gamestat for player %s'%player['fullname']
+                      print( 'saving gamestat for player %s'%player['fullname'] )
                       if ( hasStats ):
                           if (not _argDict['stopOnFail']):
                               try: 
                                   gameStatInst.save()
                               except:
-                                  print 'failed to save gamestat for player %s'%player['fullname']
+                                  print( 'failed to save gamestat for player %s'%player['fullname'] )
                           else:
                               gameStatInst.save()
                 if(reg_season and line.count('TOTAL') > 0):
                     reg_season = False
                     if ( intable ):
                         intable = False
-                        print 'saving gamestat for player %s'%player['fullname']
+                        print( 'saving gamestat for player %s'%player['fullname'] )
                         gamePlayerInst.save()
                         if ( hasStats ):
                             if (not _argDict['stopOnFail']):
                                 try: 
                                     gameStatInst.save()
                                 except:
-                                    print 'failed to save gamestat for player %s'%player['fullname']
+                                    print( 'failed to save gamestat for player %s' % player['fullname'] )
                             else:
                                 gameStatInst.save()
         
@@ -1096,9 +1135,9 @@ def getStatsFromGamelogs():
 
 def parseArgs(parser):
     args = parser.parse_args()
-    for key,val in args.__dict__.iteritems():
-	print "%s = %s"%(str(key), str(val))
-	if ( val != None ):
+    for key,val in args.__dict__.items():
+        print( "%s = %s"%(str(key), str(val)) )
+        if ( val != None ):
             _argDict[key] = val
             
 #

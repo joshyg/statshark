@@ -4,11 +4,15 @@ import os
 DEBUG = True
 TEMPLATE_DEBUG = DEBUG
 
-CURRENT_PATH = os.path.dirname(__file__)
+CURRENT_PATH = os.path.dirname( os.path.abspath( __file__ ) )
+
+MODE='unknown'
 if ( CURRENT_PATH.find('nflbacktest_dev') == -1 ):
-  mode = 'dev'
+  MODE = 'production'
 else:
-  mode = 'production'
+  MODE = 'dev'
+print( 'CURRENT_PATH=%s MODE=%s'%(CURRENT_PATH,MODE) )
+
 MY_PROJECT_ROOT = '%s/../' % CURRENT_PATH
 
 
@@ -19,7 +23,7 @@ ADMINS = (
 
 MANAGERS = ADMINS
 
-if(mode == 'production'):
+if(MODE == 'production'):
 
   DATABASES = {
       'default': {
