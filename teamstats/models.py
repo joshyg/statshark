@@ -4,16 +4,16 @@ from django.db import models
 class Games(models.Model):
     gameid = models.IntegerField(primary_key=True)
     date = models.DateField('date of game')
-    away_team = models.IntegerField()
-    home_team = models.IntegerField()
-    away_team_spread = models.DecimalField(decimal_places=1, max_digits=3)
+    away_team = models.IntegerField(db_index=True)
+    home_team = models.IntegerField(db_index=True)
+    away_team_spread = models.DecimalField(decimal_places=1, max_digits=4)
     over_under = models.DecimalField(decimal_places=1, max_digits=4)
     away_team_score = models.IntegerField()
     home_team_score = models.IntegerField()
     home_team_record = models.DecimalField(decimal_places=3, max_digits=4)
     away_team_record = models.DecimalField(decimal_places=3, max_digits=4)
-    week =   models.IntegerField()
-    season = models.IntegerField()
+    week =   models.IntegerField(db_index=True)
+    season = models.IntegerField(db_index=True)
     away_team_yards = models.IntegerField()
     home_team_yards = models.IntegerField()
     away_team_rushing_yards = models.IntegerField()
@@ -46,8 +46,8 @@ class Players(models.Model):
     games = models.ManyToManyField(Games, through='GamePlayers')
     position = models.IntegerField()
     birthdate = models.DateField()
-    lastname = models.CharField(max_length = 20)
-    firstname = models.CharField(max_length = 20)
+    lastname = models.CharField(max_length = 20, db_index=True)
+    firstname = models.CharField(max_length = 20, db_index=True)
 
 class GamePlayers(models.Model):
     gameid = models.ForeignKey(Games)
@@ -113,5 +113,5 @@ class DefGameStats(models.Model):
  
 
 class Coaches(models.Model):
-  firstname = models.CharField(max_length=20)
-  lastname = models.CharField(max_length=20)
+  firstname = models.CharField(max_length=20, db_index=True)
+  lastname = models.CharField(max_length=20, db_index=True)

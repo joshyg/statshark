@@ -1125,7 +1125,7 @@ def submit(request):
             positionstr = positions[position]
             queried_players.append(player)
             player_game_list = player.games.only('gameid').all()
-            #print 'player game list gathered size = %d position = %s'%(player_game_list.count(),positions[position])
+            print 'player game list gathered size = %d position = %s'%(player_game_list.count(),positions[position])
           else:
             print 'no such player %s %s'%(player_name_array[0], player_name_array[1])
             player_game_list = []
@@ -1211,7 +1211,7 @@ def submit(request):
           else:
             result_array_team_a = tmp_team_a_list
           print 'end player based exclusion'
-          #print 'end player based exclusion tmp_team_a_list size = %d'%(len(result_array_team_a))
+          print 'end player based exclusion tmp_team_a_list size = %d'%(len(result_array_team_a))
            
       #uniquify a before its passed to b 
       #result_array_team_a = uniq(result_array_team_a)
@@ -2140,6 +2140,9 @@ def submit(request):
   #print 'json_str:'
   #print json_str
   print 'converted  to json'
-  return HttpResponse(json_str, mimetype='application/json')
+  if ( settings.MODE == 'dev' ):
+    return HttpResponse(json_str, content_type='application/json')
+  else:
+    return HttpResponse(json_str, mimetype='application/json')
 
 
