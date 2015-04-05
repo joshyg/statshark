@@ -2145,7 +2145,7 @@ def submit(request):
   #print 'json_str:'
   #print json_str
   print 'converted  to json'
-  if ( settings.MODE == 'dev' ):
+  if ( sys.version_info > (2, 7) ):
     return HttpResponse(json_str, content_type='application/json')
   else:
     return HttpResponse(json_str, mimetype='application/json')
