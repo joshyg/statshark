@@ -242,7 +242,7 @@ _fieldDict = {
 _decimalFields = ['away_team_spread', 'over_under', 'away_team_record', 'home_team_record',
                   'RecvAvg', 'RushAvg', 'Pct', 'Avg', 'Rate', 'RushAvg', 'Sck', 'Avg']
 
-#functions
+# Functions
 
 #
 # The folowing should be rarely used, but sometimes we have to start a db from scratch
@@ -269,26 +269,51 @@ def migrateDb ( ):
                        ['firstname', 'lastname'], ['game_id'], ['game_id'], 
                        ['gameplayer_id'], ['gameplayer_id'], ['gameplayer_id'] ] 
     uniqueIdDict = dict( zip( tables, uniqueIds ) )
-    #FIXME: skipping these tables for now since they are done
-    skipTables =  [ 'teamstats_games', 'teamstats_players' ]
+    # The following tables allow us to start the migration
+    # in the middle of a table, or to skip certain tables.
+    skipTables =  []
+    startIndices =  [ 0, 0, 0, 0, 0, 0, 0, 0, 0 ]
+    startIndexDict = dict( zip( tables, startIndices ) )
+    # On webfaction server I kept getting booted for exceeding
+    # memory limits.  To handle this I make multiple calls to
+    # the script.  Each call writes up to writesPerCall rows
+    writesPerCall = 100000
 
     for table in tables:
-        if ( table in skipTable ):
+        if ( table in skipTables ):
             continue
         object = dbDict[table]
         fieldStr = ''
         fieldArray = []
         objCache = []
         index = 0
+        rowNum = 0
         for fieldTuple in c.execute('PRAGMA table_info(%s)'%table).fetchall():
             field = fieldTuple[1]
             fieldArray.append(field)
             if field in [ '_state' ]:
                 continue
             fieldStr += "%s," % field
+
         print ( " select %s from %s " % ( fieldStr[0:-1], table ) )
-        for row in c.execute( "select %s from %s" % ( fieldStr[:-1], table ) ):
-            index += 1
+        for row in c.execute( "select %s from %s" % ( fieldStr[:-1], table ) ).fetchall()[startIndexDict[table]:]:
+            # Determine if entry is already in table
+            kwDict = {}
+            i = 0
+            # DEBUG
+            if ( rowNum % 10000 == 1 ):
+                print( 'rowNum = %d index = %d'%(rowNum, index) )
+            rowNum += 1
+            # END of DEBUG
+            for field in fieldArray:
+                if field in [ '_state' ]:
+                    continue
+                if ( field in uniqueIdDict[ table ] ):
+                    kwDict[ field ] = row[i]
+                i += 1
+            if ( object.objects.filter( **kwDict ).count() != 0 ):
+                continue
+                    
             obj = object()
             i = 0
             for field in fieldArray:
@@ -301,20 +326,17 @@ def migrateDb ( ):
                     obj.__dict__[field] = Decimal( rowStr )
                 else:
                     obj.__dict__[field] = row[i]
-                i+=1
-            #for key,val in obj.__dict__.items():
-            #    print( "%s = %s"%(str(key), str(val)) )
-            kwDict = {}
-            for id in uniqueIdDict[ table ]:
-                kwDict[ id ] = obj.__dict__[ id ] 
-            if ( object.objects.filter( **kwDict ).count() == 0 ):
-                objCache.append(obj) 
-                #obj.save() 
-            if ( index % 30 == 0 ):
+                i += 1
+            objCache.append(obj) 
+            index += 1
+            if ( index % 30 == 0 and objCache != [] ):
                 object.objects.bulk_create(objCache)
                 objCache = []
-        # one last bulk create for any object still in the cache
+            if ( index > writesPerCall ):
+                break
         object.objects.bulk_create(objCache)
+        if ( index > writesPerCall ):
+            break
 
 # If nfl.com changes the player id in the gamelog url, we change too
 def movePlayer ( oldid, newid ):
