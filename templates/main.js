@@ -321,10 +321,11 @@ function ShowMainForm() {
   document.getElementById('return_to_form').style.display = 'none';
 }
 
-function InitPage() {
+function InitPage( static_url ) {
   document.getElementById('main_form').style.display = 'block';
   document.getElementById('return_to_form').style.display = 'none';
   document.getElementById('return_to_form').style.display = 'none';
+  STATIC_URL = static_url
 }
   
 function ajax_submit(){
@@ -356,7 +357,7 @@ function ajax_submit(){
           //summary_string += '<br>Team Data<br>';
           if(plotting == 1) {
             //summary_string += '<img src=\"/static/'+serverdata.teamsumchart+'\" alt=\"\" >'
-            summary_string += '<img src=\"{{STATIC_URL}}'+serverdata.teamsumchart+'\" >'
+            summary_string += '<img src=\"'+STATIC_URL+serverdata.teamsumchart+'\" >'
           }
 
           summary_string += '<table id=\"player_stats\"><thead><tr><th>ATS</th><th>Win%</th><th>Over Covers</th><th>Avg Pts Scored</th><th>Avg Pts Allowed</th><th>Avg Total Points</th></tr></thead>';
