@@ -417,6 +417,11 @@ def main(request={}):
   response = render_to_response('main.html',  csrf_request,context_instance=RequestContext(request))
   return response
 
+def about(request={}):
+  csrf_request = {}
+  response = render_to_response('about.html',  csrf_request,context_instance=RequestContext(request))
+  return response
+
 def submit(request):
   print ("num team a conditions was %d num team b conditions was %d num game conditions was %d"%(int(get_request_param(request,'num_team_a_conditions', 0)),int(get_request_param(request,'num_team_b_conditions',0)),int(get_request_param(request,'num_game_conditions',0))))
   response = {}

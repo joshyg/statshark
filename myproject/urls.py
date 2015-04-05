@@ -12,6 +12,7 @@ urlpatterns = patterns('',
     # url(r'^myproject/', include('myproject.foo.urls')),
     url(r'^$', 'teamstats.views.main'),
     url(r'submit', 'teamstats.views.submit'),
+    url(r'^about/', 'teamstats.views.about'),
     #from messageboard
     url(r'forum', 'posts.views.login_page'),
     url(r'^authenticate_user/$', 'posts.views.authenticate_user'),
