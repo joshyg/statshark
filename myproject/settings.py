@@ -94,10 +94,7 @@ STATICFILES_DIRS = (
     # Put strings here, like "/home/html/static" or "C:/www/django/static".
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
-    MY_PROJECT_ROOT+'templates/source/',
-    MY_PROJECT_ROOT+'templates/source/charts/',
-    MY_PROJECT_ROOT+'templates/bootstrap/css/',
-    MY_PROJECT_ROOT+'templates/bootstrap/js/',
+    MY_PROJECT_ROOT+'templates/',
 
 )
 
