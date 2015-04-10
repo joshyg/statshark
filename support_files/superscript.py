@@ -47,9 +47,9 @@ _argDict = {}
 _argDict['minyear'] =2014
 _argDict['minweek'] =1
 _argDict['maxyear'] =2014
-_argDict['maxweek'] =15
+_argDict['maxweek'] =21
 _argDict['debug'] = False
-_argDict['seasonMode'] = 'regularseason' # certain links follow a different format for regular/postseason
+_argDict['seasonMode'] = 'postseason' # certain links follow a different format for regular/postseason
 _argDict['playerMode'] = 'current' # hitoric player data is found on different pages than current player data.
 _argDict['overwrite'] = False # Sometimes we want to overwrite everything, other times we dont :)
 _argDict['updateGames'] = False
@@ -187,44 +187,79 @@ _team_cities = [
   "Tennessee",
   "Washington",
 ]
+_proFootballReferenceAbbrevs = [
+  "crd",
+  "atl",
+  "rav",
+  "buf",
+  "car",
+  "chi",
+  "cin",
+  "cle",
+  "dal",
+  "den",
+  "det",
+  "gnb",
+  "htx",
+  "clt",
+  "jax",
+  "kan",
+  "mia",
+  "min",
+  "nwe",
+  "nor",
+  "nyg",
+  "nyj",
+  "rai",
+  "phi",
+  "pit",
+  "sdg",
+  "sfo",
+  "sea",
+  "ram",
+  "tam",
+  "oti",
+  "was"
+]
+_cityAbbrevs = [
+    "ARI",
+    "ATL",
+    "BAL",
+    "BUF",
+    "CAR",
+    "CHI",
+    "CIN",
+    "CLE",
+    "DAL",
+    "DEN",
+    "DET",
+    "GB",
+    "HOU",
+    "IND",
+    "JAC",
+    "KC",
+    "MIA",
+    "MIN",
+    "NE",
+    "NO",
+    "NYG",
+    "NYJ",
+    "OAK",
+    "PHI",
+    "PIT",
+    "SD",
+    "SF",
+    "SEA",
+    "STL",
+    "TB",
+    "TEN",
+    "WAS",
+]
 
-_team_city_dict = dict(zip(_team_cities, _teams))
- 
-_team_abbrevs = {
-    "GB" : "packers",
-    "SEA" : "seahawks",
-    "WAS" : "redskins",
-    "HOU" : "texans",
-    "TEN" : "titans",
-    "KC" : "chiefs",
-    "NE" : "patriots",
-    "MIA" : "dolphins",
-    "OAK" : "raiders",
-    "NYJ" : "jets",
-    "JAC" : "jaguars",
-    "PHI" : "eagles",
-    "CLE" : "browns",
-    "PIT" : "steelers",
-    "MIN" : "vikings",
-    "STL" : "rams",
-    "BUF" : "bills",
-    "CHI" : "bears",
-    "CIN" : "bengals",
-    "BAL" : "ravens",
-    "NO" : "saints",
-    "ATL" : "falcons",
-    "CAR" : "panthers",
-    "TB" : "buccaneers",
-    "SF" : "49ers",
-    "DAL" : "cowboys",
-    "IND" : "colts",
-    "DEN" : "broncos",
-    "NYG" : "giants",
-    "DET" : "lions",
-    "SD" : "chargers",
-    "ARI" : "cardinals",
-}
-
+_proFootballReferenceAbbrevDict = dict(zip(_teams, _proFootballReferenceAbbrevs))
+_cityAbbrevDict = dict(zip(_teams, _cityAbbrevs))
+_reverseCityAbbrevDict = dict( zip(_cityAbbrevs, _teams) )
+_teamCityDict = dict(zip(_team_cities, _teams))
 _teamRecord = { val: {} for val in _teams }
 
 # Convert column names in nfl.com to our own field names
@@ -385,17 +420,27 @@ def isDefense(position = ''):
         return True
     return False
 
+def getSeasonFromGameId(gameid):
+    yr = int(str(gameid)[0:4])
+    month = int(str(gameid)[4:6])
+    season = yr
+    if ( month < 6 ):
+        season -= 1
+    return season
+
 def getAllGameLinks():
-    if ( _argDict['seasonMode'] == 'regularseason' ):
-        wkPrefix = 'REG'
-    elif ( _argDict['seasonMode'] == 'postseason' ):
-        wkPrefix = 'POST'
-    for yr in range(_argDict['minyear'],_argDict['maxyear']+1):
-        for wk in range(_argDict['minweek'],_argDict['maxweek']+1):
-            sb = url.urlopen('http://www.nfl.com/scores/%d/%s%d'%(yr, wkPrefix, wk))
-            scoreboard = sb.readlines()
-            getGameLinksFromScoreboard(scoreboard)
-            getTeamRecordsFromScoreboard(scoreboard, yr, wk)
+    for season in  _argDict['seasonMode'].split(','):
+        print( season )
+        if ( season == 'regularseason' ):
+            wkPrefix = 'REG'
+        elif ( season == 'postseason' ):
+            wkPrefix = 'POST'
+        for yr in range(_argDict['minyear'],_argDict['maxyear']+1):
+            for wk in range(_argDict['minweek'],_argDict['maxweek']+1):
+                sb = url.urlopen('http://www.nfl.com/scores/%d/%s%d'%(yr, wkPrefix, wk))
+                scoreboard = sb.readlines()
+                getGameLinksFromScoreboard(scoreboard)
+                getTeamRecordsFromScoreboard(scoreboard, yr, wk)
 
 #
 # scoreboard is a page of links for a given week on nfl.com
@@ -417,12 +462,12 @@ def getTeamRecordsFromScoreboard(scoreboard = [], yr=1, wk=1):
             wins = int(line_re.group(2))
             losses = int(line_re.group(3))
             ties = int(line_re.group(4))
-            print( 'wk %d team %s wins = %d'%(wk, _team_abbrevs[team], wins) )
-            _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)] = { 'wins': 0, 'losses' : 0, 'ties' : 0 }
+            print( 'wk %d team %s wins = %d'%(wk, _reverseCityAbbrevDict[team], wins) )
+            _teamRecord[_reverseCityAbbrevDict[team]]['%d%d'%(yr, wk)] = { 'wins': 0, 'losses' : 0, 'ties' : 0 }
             if ( wins + losses + ties > 0 ) :
-                _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)]['wins'] = wins
-                _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)]['losses'] = losses
-                _teamRecord[_team_abbrevs[team]]['%d%d'%(yr, wk)]['ties'] = ties
+                _teamRecord[_reverseCityAbbrevDict[team]]['%d%d'%(yr, wk)]['wins'] = wins
+                _teamRecord[_reverseCityAbbrevDict[team]]['%d%d'%(yr, wk)]['losses'] = losses
+                _teamRecord[_reverseCityAbbrevDict[team]]['%d%d'%(yr, wk)]['ties'] = ties
 
         
 
@@ -446,7 +491,13 @@ def getGameExtras(gameid, season, week, home, away):
     row_index = 0
     home_team_wins = True
     box_score_found = False
-    for line in schedule.readlines():
+
+    
+    # Note: for whatever reason, profootball reference begins its postseason week numbers at 31
+    # so WildCard = 31, division = 32, etc
+    postSeasonWeekMappings = { 18 : 31, 19 : 32, 20 : 33, 22 : 34 }
+    for line_byte in schedule.readlines():
+        line = str( line_byte )
         if ( not in_row ):
             # Week
             line_re = re.search('csk="(\d+)"', line)
@@ -484,7 +535,8 @@ def getGameExtras(gameid, season, week, home, away):
                     else:
                         tmp_home_team = losing_team
                         tmp_away_team = winning_team
-                    if ( tmp_home_team.find(home) >= 0 and tmp_away_team.find(away) >= 0  and week == tmp_week ):
+                    if ( tmp_home_team.find(home) >= 0 and tmp_away_team.find(away) >= 0  and
+                         ( ( week <= 17 and week == tmp_week ) or ( week > 17 and postSeasonWeekMappings[week] == tmp_week ) ) ):
                         box_score_found = True
                         break
     if ( box_score_found ):
@@ -498,7 +550,8 @@ def getDataFromBoxScore(gameid, boxscore):
     surface = False
     weather = False
     temperature = -100
-    for line in page.readlines():
+    for line_byte in page.readlines():
+        line = str( line_byte )
         if(line.find('<b>Surface</b>') >= 0):
             surface = True
         elif(line.find('<b>Weather</b>') >= 0):
@@ -527,27 +580,89 @@ def getDataFromBoxScore(gameid, boxscore):
 def getBetData(gameid, season, week, home, away):
     gameDataFuncs = {
                         'repole' : getBetDataFromRepole,
-                        'wagetracker' : getBetDataFromWageTracker
+                        'wagetracker' : getBetDataFromWageTracker,
+                        'profootballreference' : getBetDataFromProFootballReference
                     }			
     if ( _gameDataSource != 'default' ):
         gameDataSource = _gameDataSource
     elif ( season < 2014 ): 
         gameDataSource = 'repole'
     else:
-        gameDataSource = 'wagetracker'
+        gameDataSource = 'profootballreference'
     return gameDataFuncs[gameDataSource](gameid, week, home, away)
 
+def getBetDataFromProFootballReference(gameid, week, home, away):
+
+    season = getSeasonFromGameId( gameid )
+    if( _argDict['debug'] ):
+        print('In getBetDataFromProFootballReference week = %d home = %s opening http://www.pro-football-reference.com/teams/%s/%d_lines.htm'%( week, _proFootballReferenceAbbrevDict[home], _proFootballReferenceAbbrevDict[away], season ))
+    #http://www.pro-football-reference.com/teams/nwe/2014_lines.htm
+    page = url.urlopen('http://www.pro-football-reference.com/teams/%s/%d_lines.htm'%( _proFootballReferenceAbbrevDict[away], season ))
+    matches = 0
+    for line_byte in page.readlines():
+        line = str( line_byte )
+        if ( line.find('stats_table') ):
+            line_re = re.search('Opp</th>(.*)</tr><tr><th>Spread</th>(.*)</tr><tr><th>Over/Under</th>(.*)</tr><tr><th>Result', line)
+            if ( line_re ):
+                homeTeams = str( line_re.group(1) )
+                spreads = str( line_re.group(2) )
+                overUnders = str( line_re.group(3) )
+
+                # Determine week of play based on matching hometeam
+                # we need to do this because this site indexes by game played, not
+                # week of season
+                homeTeamArray = homeTeams.split('</td>')
+                gameIndex = 0
+                found = False
+                for entry in homeTeamArray:
+                    # The @, which indicates an away game, is not always  present in post season section of the table
+                    if ( week <= 17 ):
+                        homeTeam_re = re.search( '<td.*>@.*(...)</a>', entry)
+                    else:
+                        homeTeam_re = re.search( '<td.*>.*(...)</a>', entry)
+                    if ( homeTeam_re ):
+                        homeTeam = str( homeTeam_re.group(1) ).lower()
+                        # Format not 100% ocnsistent, sometimes they use their own abbreviations, sometimes the standard 3 letter location abbreviations
+                        if ( homeTeam in [ _proFootballReferenceAbbrevDict[ home ], _cityAbbrevDict[ home ].lower() ] and
+                            ( ( week <= 17 and gameIndex <= 15 ) or ( week > 17 and gameIndex > 15 ) ) ):
+                            if( _argDict['debug'] ):
+                                print( 'game found, hometeam = %s'%home )
+                            Found = True
+                            break
+                    gameIndex += 1
+                if ( not Found ):
+                    continue
+                # Grab spreads
+                spreadArray = spreads.split('</td>')
+                awayTeamSpread = str( spreadArray[ gameIndex ] )
+                spread_re = re.search( '<td.*>(.*)', awayTeamSpread)
+                if ( spread_re ):
+                    awayTeamSpread = str(spread_re.group(1) )
+                    if( _argDict['debug'] ):
+                        print( awayTeamSpread )
+                
+                # Grab over under
+                overUnderArray = overUnders.split('</td>')
+                overUnder = str( overUnderArray[ gameIndex ] )
+                overUnder_re = re.search( '<td.*>(.*)', overUnder)
+                if ( overUnder_re ):
+                    overUnder = str(overUnder_re.group(1) )
+                return (awayTeamSpread, overUnder)
+
+    
 def getBetDataFromWageTracker(gameid, week, home, away):
     print( 'in getBetDataFromWageTracker home = %s away = %s'%(home, away) )
     #print('week,away_team,away_team_score,away_team_spread,away_team_ml,over,under,home_team,home_team_score,home_team_spread,home_team_ml,total') 
     week_with_preseason = week+5
     page = url.urlopen('http://www.wagertracker.com/Odds.aspx?week=%d&sport=NFL'%week_with_preseason)
     matches = 0
-    for line in page.readlines():
+    for line_byte in page.readlines():
+        line = str( line_byte )
         """
         <td colspan="2"><table class="stnd"><tr><td class="oddshead">Final</td><td class="oddsheadnum">Score</td><td class="oddsheadnum">Spread</td><td class="oddsheadnum">ML</td><td class="oddsheadnum">Over/Under</td></tr><tr><td class="scoreoddsteamwinning">Dallas</td><td class="scoreodds">24</td><td class="scoreodds">+3.5</td><td class="scoreodds">+166</td><td class="scoreodds"><SPAN class="scoreodds">-106</SPAN>/<SPAN class="scoreodds">-104</SPAN></td></tr><tr><td class="scoreoddsteam">NY Giants</td><td class="scoreodds">17</td><td class="scoreodds">-3.5</td><td class="scoreodds">-185</td><td class="scoreodds">Total: 45.5</td></tr><tr><td colspan=5><a href="oddshistory.aspx?sport=NFL&gameid=1304544">Odds History</a>&nbsp;</tr></tr></table></td>
         """
         if(line.count('table class=\"stnd\"') > 0):
+            print( line )
             team_re = re.search(r'scoreoddsteam\S*\">(.*)<.td><td class=\"scoreodds\">(\d+)</td><td class=\"scoreodds\">(\S+)</td><td class="scoreodds">(.*)</td><td class="scoreodds"><SPAN class="scoreodds">(.*)</SPAN>/<SPAN class="scoreodds">(.*)</SPAN></td></tr><tr><td class="scoreoddsteam.*">(.*)</td><td class="scoreodds">(\d+)</td><td class="scoreodds">(.*)</td><td class="scoreodds">(.*)</td><td class="scoreodds">Total: (.*)</td></tr>',line)
             if(team_re != None):
                 matches+=1
@@ -556,7 +671,7 @@ def getBetDataFromWageTracker(gameid, week, home, away):
                 away_team_ml = team_re.group(4)
                 home_team = str(team_re.group(7))
                 total = str(team_re.group(11))
-                if ( _team_city_dict[away_team] == away and _team_city_dict[home_team] == home ):
+                if ( _teamCityDict[away_team] == away and _teamCityDict[home_team] == home ):
                     return ( away_team_spread, total )
     
 
@@ -573,9 +688,9 @@ def getBetDataFromRepole(gameid, week, home, away):
     lineIndex = 5
     overUnderIndex = 6
     print( "%s %s %d"%(away, home, gameid) )
-    if ( _argDict['seasonMode'] == 'regularseason' ):
+    if ( _argDict['seasonMode'] == 'regularseason' or week <= 17 ):
         csvPrefix = 'nfl'
-    elif ( _argDict['seasonMode'] == 'postseason' ):
+    elif ( _argDict['seasonMode'] == 'postseason' or week > 17 ):
         csvPrefix = 'post'
         season = yr - 1
         awayIndex += 1
@@ -609,7 +724,8 @@ def getCoaches( gameid ):
     bf = ['','','']
     coachnum = 0
     coacharray = ['away', 'home']
-    for line in page:
+    for line_byte in page:
+        line = str( line_byte )
         bf[0] = bf[1]
         bf[1] = bf[2]
         bf[2] = line
@@ -626,7 +742,7 @@ def getCoaches( gameid ):
                     coach.save()
                 else:
                     coach = coachQuery[0]
-                _gameDataDict[gameid]['%s_coach'%coacharray[coachnum]] = coach
+                _gameDataDict[gameid]['%s_coach'%coacharray[coachnum]] = coach.pk
             coachnum+=1
             if(coachnum == 2):
                 break
@@ -637,6 +753,8 @@ def getCoaches( gameid ):
 def getGameDataDict():
     game_num = 0
     header_list = ['year', 'week','away_team','home_team']
+    if(_argDict['debug']):
+        print( "In getGameDataDict, len of gameDictList is %d"%(len(_gameDictList) ) )
     for game in _gameDictList:
         if ( not _argDict['overwrite'] ):
             if ( Games.objects.filter( gameid = game['gameid'] ).count() > 0 ):
@@ -655,6 +773,8 @@ def getGameDataDict():
             continue
         _gameDataDict[game['gameid']]['away_team_spread'] = spread
         _gameDataDict[game['gameid']]['over_under'] = over_under
+        if(_argDict['debug']):
+            print( "Grabbing year %d week %d gameid %d"%(game['year'], game['week'], game['gameid']) )
         try:
             page = url.urlopen('http://www.nfl.com/widget/gc/2011/tabs/cat-post-boxscore?gameId=%d'%game['gameid'])
             page_array = page.readlines()
@@ -665,8 +785,8 @@ def getGameDataDict():
         row_index = 0
         getCoaches( game['gameid'] )
         getGameExtras( game['gameid'], game['year'], game['week'], game['home_team'],  game['away_team'] )
-        for line in page_array:
-            
+        for line_byte in page_array:
+            line = str(line_byte) 
             if(line.count('gc-box-score-table') > 0):
                 boxscoretable +=1
             elif(boxscoretable == 2):
@@ -722,9 +842,6 @@ def getGameDataDict():
                       row_index = (row_index+1)%7
                       standard_line = True
                 if(not standard_line):
-                    if(_argDict['debug']):
-                        print( "non standard line at row_index %d :"%row_index )
-                        print ( line )
                     if(line.count('</table>') > 0):
                         if(_argDict['debug']):
                             print( "boxscore table complete" )
@@ -784,18 +901,11 @@ def getGameDataDict():
 # Get win percentage for each team
 #
 def getRecords ( gameEntry ): 
+    season = getSeasonFromGameId( gameEntry.gameid )
     #
     # The data from gamecenter is post game, which is not what we want
     # So we subtract a game
     #
-    yr = int(str(gameEntry.gameid)[0:4])
-    month = int(str(gameEntry.gameid)[4:6])
-    
-    # records are stored by season, not yr
-    season = yr
-    if ( month < 6 ):
-        season -= 1
-    print( '%d%d'%(yr,gameEntry.week) )
     away_games_played = max ( _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['wins']   + 
                               _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['losses'] + 
                               _teamRecord[_teams[gameEntry.away_team]]['%d%d'%(season,gameEntry.week)]['ties'] - 1, 1)
@@ -848,6 +958,9 @@ def updateGameTable():
             gameEntry.season = yr
         else:
             gameEntry.season = yr - 1
+
+        if ( _argDict['debug'] ):
+            print( game.items() )
 
         for key,val in game.items():
             if( key in gameEntry.__dict__.keys() ):
