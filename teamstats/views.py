@@ -13,6 +13,7 @@ import math, random
 import cairoplot
 from django.conf import settings
 import time,datetime
+import sys
 
 plotting = True
 positions = [

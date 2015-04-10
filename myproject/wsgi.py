@@ -1,7 +1,8 @@
 import os
 import sys
 print os.path.abspath(__file__)
-if ( os.path.abspath(__file__).find('nflbacktest_dev') == -1 ):
+if ( os.path.abspath(__file__).find('nflbacktest_dev') == -1 and
+     os.path.abspath(__file__).find('nflbacktest_prod') == -1 ):
     import django
     from django.core.handlers.wsgi import WSGIHandler
     sys.path.append('/home/joshyg/webapps/nflbacktest/')
