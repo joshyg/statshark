@@ -95,6 +95,7 @@ STATICFILES_DIRS = (
     # Always use forward slashes, even on Windows.
     # Don't forget to use absolute paths, not relative paths.
     MY_PROJECT_ROOT+'templates/',
+    MY_PROJECT_ROOT+'images/',
 
 )
 

@@ -58,8 +58,35 @@ Usage examples are provided below:</p>
 
 <h2>Query Team Performance against Spread</h2>
 <p>StatShark allows users to query the performance of a given team based on various criteria.
-In the example below, a user wishes to know the performance of the Dallas Cowboys against the spread
-for the last 10 years:</p>
+In the example below, We wish to test the theory that the Dallas Cowboys,
+due to their status as 'America's team', has performed poorly against the spread.
+As a first step, the performance of the Dallas Cowboys against the spread
+for the last 10 years.  The user enters their search criteria as so:</p>
+<img src="{{STATIC_URL}}example1_constraints1.png">
+<p>When we click on the Submit button, we are first shown a high level summary or our results:</p>
+<br>
+<img src="{{STATIC_URL}}example1_summary1.png" height=600 width=600>
+<br>
+<p>This does not seem to confirm our suspicions, as the performance is basically par.  We can click on Game data to see a breakout
+of the results.  As we scroll through the table, we realize that their performance against the spread was quite good in the early
+years of our data set, but that it dropped significantly later on.  This makes us question whether 2004 is an appropriate starting point.
+It may make more sense to limit our query to the Tony Romo era. Specifically, we want to know how the team performs agains the spread
+in high profile games, where we suspect the line may be influenced by a large amount of casual bettors.  To select such games we can
+limit our search to late season in-conference games.  We enter our updated criteria below:
+<img src="{{STATIC_URL}}example1_constraints2.png">
+<p>And now we see the following:</p>
+<br>
+<img src="{{STATIC_URL}}example1_summary2.png" height=600 width=600>
+<br>
+<p>These results are quite significant.  The performance against the spread is very poor, as is the performance of bets that take the over,
+suggesting that the high profile of these games may be drawing bettors with high expectations for offensive production.  Because we have 
+entered a player in our search terms, A histogram of his offensive production is located in the Player Data section of the Summary.
+  I have pasted the results below:</p>
+<br>
+<img src="{{STATIC_URL}}example1_playersummary1.png" height=600 width=600>
+<br>
+<p>It seems we have spotted a trend.  Romo's performance is quite average in these games, and the cowboys themselves are only slightly below .500,
+and yet their performance seems to fall well the expectation of bettors.  This is exactly the type of insight that statshark is designed to provide.</p>
 
 </div>
 <script src="{{STATIC_URL}}bootstrap.min.js"></script>
