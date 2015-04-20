@@ -221,7 +221,9 @@ class QueryTracker:
         self.gameset = []
         self.games_def = []
         self.result_array = []
+        self.final_result_array = []
         self.team_a_conditions_exist = False
+        self.team_b_conditions_exist = False
         self.team_a_conditions = []
         self.team_b_conditions = []
         self.num_team_a_conditions = 0
@@ -231,6 +233,34 @@ class QueryTracker:
         self.team_a_list = []
         self.queried_players = []
         self.player_game_list = []
+        # results
+        self.teama_spreadwins=0
+        self.teamb_spreadwins=0
+        self.teama_wins=0
+        self.teamb_wins=0
+        self.over_wins=0
+        self.teama_points=0
+        self.teamb_points=0
+        self.numgames=0.0
+        self.numgamesint=0
+        self.push_goes_to_bookie=False
+        #response dict
+        self.response = {}
+        self.response['result_table'] = []
+        self.response['teama_summary'] = []
+        self.response['teamb_summary'] = []
+        self.response['player_table'] = []
+        self.response['players_with_stats'] = []
+        self.response['qbs_with_stats'] = []
+        self.response['defs_with_stats'] = []
+        self.response['rbwrs_with_stats'] = []
+        self.response['qb_avgs'] = []
+        self.response['def_avgs'] = []
+        self.response['rbwr_avgs'] = []
+        self.response['qb_charts'] = []
+        self.response['playerdata_charts'] = []
+        self.response['rbwr_charts'] = []
+        self.response['def_charts'] = []
 
     def init_team_a_dict( self ):
         #Lets first see if team a is restricted to home or away
@@ -279,10 +309,970 @@ class QueryTracker:
         print "request params gathered, team a conditions are:"
         for item in self.team_a_conditions:
             print item 
+    def filter_by_season( self, item ):
+        print "about to compute season conditions"
+        tmp_result_array = self.result_array
+        #print "tmp_result_array gathered, length = %d"%len(tmp_result_array)
+        self.team_a_conditions_exist = True
+        print "about to filter on comptype"
+        if(item['comptype'] == '='):
+            tmp_result_array = tmp_result_array.filter(season=int(item['value']))
+        elif(item['comptype'] == '<'):
+            tmp_result_array = tmp_result_array.filter(season__lt=int(item['value']))
+        elif(item['comptype'] == '>'):
+            tmp_result_array = tmp_result_array.filter(season__gt=int(item['value']))
+        self.result_array = tmp_result_array  
+        print( "season conditions complete current size of queryset is %d" % ( self.result_array.count() ) )
+    
+    def filter_by_week( self, item ):
+        print "about to compute week conditions"
+        #if at this point the results array is empty, it means we havent filtered 
+        #by week/week/oter team neutral conditions yet
+        tmp_result_array = self.result_array
+        print "tmp_result_array gathered, length = %d"%len(tmp_result_array)
+        self.team_a_conditions_exist = True
+        print "about to filter on comptype"
+        if(item['comptype'] == '='):
+            if(int(item['value']) < 21):
+                tmp_result_array = tmp_result_array.filter(week=int(item['value']))
+            else:
+                #some years the SuperBowl is wk 22
+                tmp_result_array = tmp_result_array.filter(week__gte=21)
+            
+        elif(item['comptype'] == '<'):
+            tmp_result_array = tmp_result_array.filter(week__lt=int(item['value']))
+        elif(item['comptype'] == '>'):
+            tmp_result_array = tmp_result_array.filter(week__gt=int(item['value']))
+        self.result_array = tmp_result_array  
+    
+    def filter_by_fieldtype( self, item ):
+        print "about to compute fieldtype conditions"
+        #if at this point the results array is empty, it means we havent filtered 
+        #by week/week/oter team neutral conditions yet
+        tmp_result_array = self.result_array
+        print "tmp_result_array gathered, length = %d"%len(tmp_result_array)
+        self.team_a_conditions_exist = True
+        tmp_result_array = tmp_result_array.filter(fieldtype=item['value'])
+        self.result_array = tmp_result_array  
+    
+    def filter_by_temperature( self, item ):
+        print "about to compute temperature conditions"
+        tmp_result_array = GameExtras.objects.filter(game__in=self.result_array).exclude(temperature=-100)
+        print "tmp_result_array gathered, length = %d"%len(tmp_result_array)
+        self.team_a_conditions_exist = True
+        if(item['comptype'] == '='):
+            tmp_result_array = tmp_result_array.filter(temperature=int(item['value']))
+        elif(item['comptype'] == '<'):
+            tmp_result_array = tmp_result_array.filter(temperature__lt=int(item['value']))
+        elif(item['comptype'] == '>'):
+            tmp_result_array = tmp_result_array.filter(temperature__gt=int(item['value']))
+        self.result_array = Games.objects.filter(gameextras__in=tmp_result_array)
+    
+    def filter_by_wind( self, item ):
+        print "about to compute wind conditions"
+        tmp_result_array = GameExtras.objects.filter(game__in=self.result_array).exclude(windspeed=-100)
+        print "tmp_result_array gathered, length = %d"%len(tmp_result_array)
+        self.team_a_conditions_exist = True
+        if(item['comptype'] == '='):
+            tmp_result_array = tmp_result_array.filter(windspeed=int(item['value']))
+        elif(item['comptype'] == '<'):
+            tmp_result_array = tmp_result_array.filter(windspeed__lt=int(item['value']))
+        elif(item['comptype'] == '>'):
+            tmp_result_array = tmp_result_array.filter(windspeed__gt=int(item['value']))
+        self.result_array = Games.objects.filter(gameextras__in=tmp_result_array)
+    
+    def filter_by_humidity( self, item ):
+        print "about to compute humidity conditions"
+        tmp_result_array = GameExtras.objects.filter(game__in=self.result_array).exclude(humidity=-100)
+        print "tmp_result_array gathered, length = %d"%len(tmp_result_array)
+        self.team_a_conditions_exist = True
+        if(item['comptype'] == '='):
+            tmp_result_array = tmp_result_array.filter(humidity=int(item['value']))
+        elif(item['comptype'] == '<'):
+            tmp_result_array = tmp_result_array.filter(humidity__lt=int(item['value']))
+        elif(item['comptype'] == '>'):
+            tmp_result_array = tmp_result_array.filter(humidity__gt=int(item['value']))
+        self.result_array = Games.objects.filter(gameextras__in=tmp_result_array)
+    
+    def filter_by_over_under( self, item ):
+        print "about to compute over_under conditions"
+        tmp_result_array = self.result_array.filter(over_under__gt=0)
+        team_a_conditions_exist = True
+        print "about to filter on comptype"
+        if(item['comptype'] == '='):
+            tmp_result_array = tmp_result_array.filter(over_under=int(item['value']))
+        elif(item['comptype'] == '<'):
+            tmp_result_array = tmp_result_array.filter(over_under__lt=int(item['value']))
+        elif(item['comptype'] == '>'):
+            tmp_result_array = tmp_result_array.filter(over_under__gt=int(item['value']))
+        self.result_array = tmp_result_array  
+    
+    def filter_by_group( self, item ):
+        print ("Querying %s"% groups[int(item['value'])])
+        tmp_result_array = self.result_array
+        print "tmp_result_array gathered, length = %d"%len(tmp_result_array)
+        self.team_a_conditions_exist = True
+        team_a_index_list = []
+        for team in groups[int(item['value'])]:
+            team_index = teams.index(team)
+            self.team_a_list.append(team)
+            team_a_index_list.append(team_index)
+        if(self.use_away_team and not self.use_home_team):
+            self.result_array =  tmp_result_array.filter(away_team__in=team_a_index_list)
+            for game in self.result_array:
+                self.team_a_dict[game.pk] = game.away_team
+        elif(self.use_home_team and not self.use_away_team):
+            print 'size result_array before team filter: %d'%(tmp_result_array.count())
+            self.result_array =  tmp_result_array.filter(home_team__in=team_a_index_list)
+            print 'size result_array after team filter: %d'%(result_array.count())
+            for game in self.result_array:
+                self.team_a_dict[game.pk] = game.home_team
+        elif(self.use_home_team and self.use_away_team): 
+            self.result_array =  tmp_result_array.filter(Q(home_team__in=team_a_index_list)|Q(away_team__in=team_a_index_list))
+            for game in result_array:
+                if(game.home_team in team_a_index_list): 
+                    self.team_a_dict[game.pk] = game.home_team
+                else:
+                    self.team_a_dict[game.pk] = game.away_team
+    
+    def filter_by_opposition_group( self, item ):
+        print("team b has group conditions")
+        tmp_result_array = self.result_array
+        self.team_b_conditions_exist = True
+        #print 'result size before group condition filtering is %d'%tmp_result_array.count()
+        team_b_index_list = []
+        team_a_index_list = []
+        for t in self.team_a_list:
+            team_a_index_list.append(self.team_a_list.index(t))
+        for team in groups[int(item['value'])]:
+            #explanation of following condition: Jets vs AFC east
+            #in team a filter we get jets vs SF.  Now we want to remove SF
+            #but since jets are in AFC east, they will not be removed (without this condition)  
+            team_index = teams.index(team)
+            print "searching for team b = %s, index %d"%(team,team_index)
+            if(self.team_a_list.count(team) == 0):
+                team_index = teams.index(team)
+                team_b_index_list.append(team_index)
+        if(self.use_away_team and not self.use_home_team):
+            print 'using away'
+            for t in teams:
+                if(teams.index(t) not in team_b_index_list and teams.index(t) not in team_a_index_list):
+                    print 'excluding %s %d from final results size of results now = %d'%(t,teams.index(t),tmp_result_array.count())
+                    tmp_result_array =  tmp_result_array.exclude(Q(away_team=int(teams.index(t))))
+            self.result_array = tmp_result_array
+            for game in self.result_array:
+                self.team_a_dict[game.pk] = game.home_team
+        elif(self.use_home_team and not self.use_away_team):
+            print 'using home'
+            print team_b_index_list
+            for t in teams:
+                if(teams.index(t) not in team_b_index_list and teams.index(t) not in team_a_index_list):
+                    tmp_result_array =  tmp_result_array.exclude(home_team=teams.index(t))
+            self.result_array = tmp_result_array
+            for game in self.result_array:
+                self.team_a_dict[game.pk] = game.away_team
+        elif(self.use_home_team and self.use_away_team): 
+            print 'using home and away, length of team list is %d'%(len(team_b_index_list))
+            for game in tmp_result_array:
+                if(self.team_a_dict[game.pk] == game.away_team and (game.home_team not in team_b_index_list) or
+                     self.team_a_dict[game.pk] == game.home_team and (game.away_team not in team_b_index_list)):
+                  print 'excluding!'
+                  tmp_result_array =  tmp_result_array.exclude(gameid=game.pk)
+            self.result_array = tmp_result_array  
+        print 'team b group condition check is complete'
+    
+    def filter_by_team( self, item ):
+        print "about to compute  team conditions"
+        self.team_a_list.append(teams[int(item['value'])])
+        tmp_result_array = self.result_array
+        self.team_a_conditions_exist = True
+        print "tmp_result_array gathered, length = %d"%tmp_result_array.count()
+        print 'calculate for away team'
+        if(self.use_away_team and not self.use_home_team):
+            self.result_array = tmp_result_array.filter(away_team=int(item['value']))
+            for game in self.result_array:
+                self.team_a_dict[game.pk] = game.away_team
+        elif(self.use_home_team and not self.use_away_team):
+            self.result_array = tmp_result_array.filter(home_team=int(item['value']))
+            for game in self.result_array:
+                self.team_a_dict[game.pk] = game.home_team
+        elif(self.use_home_team and self.use_away_team):
+            self.result_array = tmp_result_array.filter(Q(home_team=int(item['value'])) | Q(away_team=int(item['value'])))
+            for game in self.result_array:
+                if(int(item['value']) == game.home_team):
+                    self.team_a_dict[game.pk] = game.home_team
+                else:
+                    self.team_a_dict[game.pk] = game.away_team
+    
+    def filter_by_opposition_team( self, item ):
+        print "about to filter team b by team"
+        tmp_team_b_list = self.result_array
+        self.team_b_conditions_exist = True
+        if(self.use_away_team and not self.use_home_team):
+            self.result_array = tmp_team_b_list.filter(away_team=int(item['value']))
+            for game in self.result_array:
+                self.team_a_dict[game.pk] = game.home_team
+        elif(self.use_home_team and not self.use_away_team):
+            self.result_array = tmp_team_b_list.filter(home_team=int(item['value']))
+            for game in self.result_array:
+                self.team_a_dict[game.pk] = game.away_team
+        elif(self.use_home_team and self.use_away_team):
+            self.result_array = tmp_team_b_list.filter(Q(home_team=int(item['value'])) | Q(away_team=int(item['value'])))
+            for game in self.result_array:
+                if(int(item['value']) == game.home_team):
+                    self.team_a_dict[game.pk] = game.away_team
+                else:
+                    self.team_a_dict[game.pk] = game.home_team
+        print "done filtering team b by team, length of result array is %d"%(self.result_array.count())
+    
+    def filter_by_spread( self, item ):
+        print "about to compute spread conditions"
+        tmp_team_a_list = self.result_array.filter(away_team_spread__gt=-100)
+        self.team_a_conditions_exist = True
+        #print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
+        if(self.use_away_team and self.use_home_team):
+            print 'using home and away'
+            #gather games that might satisfy our results if the satisfying teams are in our dict
+            if(item['comptype'] == '='):
+                tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread=Decimal(item['value'])) | Q(away_team_spread=-1*Decimal(item['value'])))
+            elif(item['comptype'] == '<'):
+                tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread__lt=Decimal(item['value']))|Q(away_team_spread__gt=-1*Decimal(item['value'])))
+            elif(item['comptype'] == '>'):
+                tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread__gt=Decimal(item['value']))|Q(away_team_spread__lt=-1*Decimal(item['value'])))
+        elif(self.use_away_team):
+            print 'using just away'
+            if(item['comptype'] == '='):
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread=Decimal(item['value']))
+            elif(item['comptype'] == '<'):
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread__lt=Decimal(item['value']))
+            elif(item['comptype'] == '>'):
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread__gt=Decimal(item['value']))
+        else:
+            print 'using just home'
+            if(item['comptype'] == '='):
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread=-1*Decimal(item['value']))
+            elif(item['comptype'] == '<'):
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread__gt=-1*Decimal(item['value']))
+            elif(item['comptype'] == '>'):
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread__lt=-1*Decimal(item['value']))
+       
+        print 'gather comparrison arrays to determine team_a_dict'
+        #gather the results where the away team satisfies 
+        if(item['comptype'] == '='):
+            tmp_result_array_away = tmp_team_a_list.filter(away_team_spread=Decimal(item['value']))
+        elif(item['comptype'] == '<'):
+            tmp_result_array_away = tmp_team_a_list.filter(away_team_spread__lt=Decimal(item['value']))
+        elif(item['comptype'] == '>'):
+            tmp_result_array_away = tmp_team_a_list.filter(away_team_spread__gt=Decimal(item['value']))
+        #gather the results where the home team satisfies 
+        if(item['comptype'] == '='):
+            tmp_result_array_home = tmp_team_a_list.filter(away_team_spread=-1*Decimal(item['value']))
+        elif(item['comptype'] == '<'):
+            tmp_result_array_home = tmp_team_a_list.filter(away_team_spread__gt=-1*Decimal(item['value']))
+        elif(item['comptype'] == '>'):
+            tmp_result_array_home = tmp_team_a_list.filter(away_team_spread__lt=-1*Decimal(item['value']))
+        #iterate over team a dict, determine which team is team a, and if a game was included where satisfying team is not team a, exclude them
+        print 'generate exclusion_list'
+        exclusion_pk_list = []
+        for game in tmp_result_array:
+            game_pk = game.pk
+            if(not self.team_a_dict.has_key(game_pk)):
+                if(tmp_result_array_away.filter(gameid=game_pk).exists()):
+                    self.team_a_dict[game_pk] = game.away_team
+                else:
+                    self.team_a_dict[game_pk] = game.home_team
+            elif(self.team_a_dict[game_pk] == game.away_team):
+                if(tmp_result_array_away.filter(gameid=game_pk).exists()):
+                    self.team_a_dict[game_pk] = game.away_team
+                else:
+                    exclusion_pk_list.append(game_pk)
+            elif(self.team_a_dict[game_pk] == game.home_team):
+                if(tmp_result_array_home.filter(gameid=game_pk).exists()):
+                    self.team_a_dict[game_pk] = game.home_team
+                else:
+                     exclusion_pk_list.append(game_pk)
+        #testing exclude
+        print 'exclusion_list computed.  length = %d'%(len(exclusion_pk_list))
+        if(exclusion_pk_list != []):
+            for key in exclusion_pk_list:
+                tmp_result_array = tmp_result_array.exclude(gameid=key)
+            self.result_array = tmp_result_array
+        else:
+            self.result_array = tmp_result_array
+        print 'spread conditions computed.  length = %d'%(self.result_array.count())
+    
+    def filter_by_win_percentage( self, item ):
+        print "about to compute WinPercentage conditions"
+        tmp_result_array = result_array
+        win_record  = get_record( item['value'] )
+        self.team_a_conditions_exist = True
+        if(self.use_away_team and self.use_home_team):
+          #a note on the team a dict for win%:
+          # as a stand alone feature, the win% only makes sense if both teams are assigned miutually exclusive
+          #constraints.  Like a +500 team versus a minus 500.   So, if home and away are being used
+          # I only assign to the team_a_dict in the team_b constraints
+          if(item['comptype'] == '='):
+              self.result_array = tmp_result_array.filter(Q(away_team_record=win_record) | Q(home_team_record=win_record))
+              result_array_away = tmp_result_array.filter(away_team_record=win_record)
+              result_array_home = tmp_result_array.filter(home_team_record=win_record)
+          elif(item['comptype'] == '<'):
+              self.result_array = tmp_result_array.filter(Q(away_team_record__lt=win_record)|Q(home_team_record__lt=win_record))
+              result_array_away = tmp_result_array.filter(away_team_record__lt=win_record)
+              result_array_home = tmp_result_array.filter(home_team_record__lt=win_record)
+          elif(item['comptype'] == '>'):
+              self.result_array = tmp_result_array.filter(Q(away_team_record__gt=win_record)|Q(home_team_record__gt=win_record))
+              result_array_away = tmp_result_array.filter(away_team_record__gt=win_record)
+              result_array_home = tmp_result_array.filter(home_team_record__gt=win_record)
+          #we dont assign team_A_dict in this condition, but if its already assigned, take it into consideration
+          print 'result_array count = %d'%result_array.count()
+          exclusion_list = []
+          for game in self.result_array:
+              if(self.team_a_dict.has_key(game.pk)):
+                  if((not result_array_away.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.away_team or
+                     (not result_array_home.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.home_team):
+                       print 'adding to exclusion list'
+                       exclusion_list.append(game.pk)
+          for gameid in exclusion_list:
+              self.result_array = self.result_array.exclude(gameid=gameid) 
+          print 'result_array count = %d'%self.result_array.count()
+              
+        elif(self.use_away_team):
+          if(item['comptype'] == '='):
+              self.result_array = tmp_result_array.filter(away_team_record=win_record)
+          elif(item['comptype'] == '<'):
+              self.result_array = tmp_result_array.filter(away_team_record__lt=win_record)
+          elif(item['comptype'] == '>'):
+              self.result_array = tmp_result_array.filter(away_team_record__gt=win_record)
+          for game in self.result_array:
+              if(not team_a_dict.has_key(game.pk)):
+                  self.team_a_dict[game.pk] = game.away_team
+        else:
+            if(item['comptype'] == '='):
+                self.result_array = tmp_result_array.filter(home_team_record=win_record)
+            elif(item['comptype'] == '<'):
+                self.result_array = tmp_result_array.filter(home_team_record__lt=win_record)
+            elif(item['comptype'] == '>'):
+                self.result_array = tmp_result_array.filter(home_team_record__gt=win_record)
+            for game in self.result_array:
+                if(not self.team_a_dict.has_key(game.pk)):
+                    self.team_a_dict[game.pk] = game.home_team
+    
+    def filter_by_opposition_win_percentage( self, item ):
+        print( "about to compute WinPercentage conditions size of result_array = %d" % ( self.result_array.count() ) )
+        tmp_result_array = self.result_array
+        self.team_b_conditions_exist = True
+        win_record  = get_record( item['value'] )
+        if(tmp_result_array.count() > 0):
+              if(self.use_away_team and self.use_home_team):
+                  #a note on the team a dict for win%:
+                  # as a stand alone feature, the win% only makes sense if both teams are assigned miutually exclusive
+                  #constraints.  Like a +500 team versus a minus 500.   So, if home and away are being used
+                  # I only assign to the team_a_dict in the team_b constraints
+                  if(item['comptype'] == '='):
+                      self.result_array = tmp_result_array.filter(Q(away_team_record=win_record) | Q(home_team_record=win_record))
+                      self.result_array_away = tmp_result_array.filter(away_team_record=win_record)
+                      self.result_array_home = tmp_result_array.filter(home_team_record=win_record)
+                  elif(item['comptype'] == '<'):
+                      self.result_array = tmp_result_array.filter(Q(away_team_record__lt=win_record)|Q(home_team_record__lt=win_record))
+                      self.result_array_away = tmp_result_array.filter(away_team_record__lt=win_record)
+                      self.result_array_home = tmp_result_array.filter(home_team_record__lt=win_record)
+                  elif(item['comptype'] == '>'):
+                      self.result_array = tmp_result_array.filter(Q(away_team_record__gt=win_record)|Q(home_team_record__gt=win_record))
+                      self.result_array_away = tmp_result_array.filter(away_team_record__gt=win_record)
+                      self.result_array_home = tmp_result_array.filter(home_team_record__gt=win_record)
+                  #imagine team a is the viking, we want them against teams that have < 500 record.  
+                  #make sure to exclude games where only the vikings have < 500 record
+                  exclusion_list = []
+                  for game in self.result_array:
+                      if(self.team_a_dict.has_key(game.pk)):
+                          if((not self.result_array_away.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.home_team or
+                             (not self.result_array_home.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.away_team):
+                              print 'adding to exclusion list'
+                              exclusion_list.append(game.pk)
+                  for gameid in exclusion_list:
+                      self.result_array = self.result_array.exclude(gameid=gameid) 
+                  for game in self.result_array:
+                      if(not self.team_a_dict.has_key(game.pk)):
+                          if(self.result_array_away.filter(gameid=game.pk).exists()):
+                              self.team_a_dict[game.pk] = game.home_team
+                          else:
+                              self.team_a_dict[game.pk] = game.away_team
+                      
+              elif(self.use_away_team):
+                  if(item['comptype'] == '='):
+                      self.result_array = tmp_result_array.filter(away_team_record=win_record)
+                  elif(item['comptype'] == '<'):
+                      self.result_array = tmp_result_array.filter(away_team_record__lt=win_record)
+                  elif(item['comptype'] == '>'):
+                      self.result_array = tmp_result_array.filter(away_team_record__gt=win_record)
+                  for game in self.result_array:
+                      if(not self.team_a_dict.has_key(game.pk)):
+                          self.team_a_dict[game.pk] = game.home_team
+              else:
+                    if(item['comptype'] == '='):
+                        self.result_array = tmp_result_array.filter(home_team_record=win_record)
+                    elif(item['comptype'] == '<'):
+                        self.result_array = tmp_result_array.filter(home_team_record__lt=win_record)
+                    elif(item['comptype'] == '>'):
+                        self.result_array = tmp_result_array.filter(home_team_record__gt=win_record)
+                    for game in self.result_array:
+                        if(not self.team_a_dict.has_key(game.pk)):
+                            self.team_a_dict[game.pk] = game.away_team
+              print "added team_b record conditions" 
+    
+    def filter_by_win_streak( self, item ):
+        print "about to compute WinStreak conditions"
+        tmp_result_array = GameStreaks.objects.filter(game__in=self.result_array)
+        self.team_a_conditions_exist = True
+        if(self.use_away_team and self.use_home_team):
+            #a note on the team a dict for win%:
+            # as a stand alone feature, the win% only makes sense if both teams are assigned miutually exclusive
+            #constraints.  Like a +500 team versus a minus 500.   So, if home and away are being used
+            # I only assign to the team_a_dict in the team_b constraints
+            if(item['comptype'] == '='):
+                self.result_array = tmp_result_array.filter(Q(away_team_win_streak=item['value']) | Q(home_team_win_streak=item['value']))
+                result_array_away = tmp_result_array.filter(away_team_win_streak=item['value'])
+                result_array_home = tmp_result_array.filter(home_team_win_streak=item['value'])
+            elif(item['comptype'] == '<'):
+                self.result_array = tmp_result_array.filter(Q(away_team_win_streak__lt=item['value'])|Q(home_team_win_streak__lt=item['value']))
+                result_array_away = tmp_result_array.filter(away_team_win_streak__lt=item['value'])
+                result_array_home = tmp_result_array.filter(home_team_win_streak__lt=item['value'])
+            elif(item['comptype'] == '>'):
+                self.result_array = tmp_result_array.filter(Q(away_team_win_streak__gt=item['value'])|Q(home_team_win_streak__gt=item['value']))
+                result_array_away = tmp_result_array.filter(away_team_win_streak__gt=item['value'])
+                result_array_home = tmp_result_array.filter(home_team_win_streak__gt=item['value'])
+            #we dont assign team_A_dict in this condition, but if its already assigned, take it into consideration
+            print 'result_array count = %d'%self.result_array.count()
+            self.result_array = Games.objects.filter(gamestreaks__in=result_array)
+            result_array_away = Games.objects.filter(gamestreaks__in=result_array_away)
+            result_array_home = Games.objects.filter(gamestreaks__in=result_array_home)
+            exclusion_list = []
+            for game in self.result_array:
+                if(self.team_a_dict.has_key(game.pk)):
+                    if((not result_array_away.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.away_team or
+                       (not result_array_home.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.home_team):
+                         print 'adding to exclusion list'
+                         exclusion_list.append(game.pk)
+            for gameid in exclusion_list:
+                self.result_array = self.result_array.exclude(gameid=gameid) 
+            print 'result_array count = %d'%self.result_array.count()
+              
+        elif(self.use_away_team):
+            if(item['comptype'] == '='):
+                self.result_array = tmp_result_array.filter(away_team_win_streak=item['value'])
+            elif(item['comptype'] == '<'):
+                self.result_array = tmp_result_array.filter(away_team_win_streak__lt=item['value'])
+            elif(item['comptype'] == '>'):
+                self.result_array = tmp_result_array.filter(away_team_win_streak__gt=item['value'])
+            self.result_array = Games.objects.filter(gamestreaks__in=self.result_array)
+            for game in self.result_array:
+                if(not self.team_a_dict.has_key(game.pk)):
+                    self.team_a_dict[game.pk] = game.away_team
+        else:
+            if(item['comptype'] == '='):
+                self.result_array = tmp_result_array.filter(home_team_win_streak=item['value'])
+            elif(item['comptype'] == '<'):
+                self.result_array = tmp_result_array.filter(home_team_win_streak__lt=item['value'])
+            elif(item['comptype'] == '>'):
+                self.result_array = tmp_result_array.filter(home_team_win_streak__gt=item['value'])
+            self.result_array = Games.objects.filter(gamestreaks__in=self.result_array)
+            for game in self.result_array:
+                if(not self.team_a_dict.has_key(game.pk)):
+                    self.team_a_dict[game.pk] = game.home_team
+    
+    def filter_by_opposition_win_streak( self, item ):
+        print "about to compute WinStreak conditions"
+        tmp_result_array = self.result_array
+        self.team_b_conditions_exist = True
+        
+        print "tmp_result_array gathered"
+        if(tmp_result_array != []):
+            if(self.use_away_team and self.use_home_team):
+                #a note on the team a dict for win%:
+                # as a stand alone feature, the win% only makes sense if both teams are assigned miutually exclusive
+                #constraints.  Like a +500 team versus a minus 500.   So, if home and away are being used
+                # I only assign to the team_a_dict in the team_b constraints
+                if(item['comptype'] == '='):
+                    self.result_array = tmp_result_array.filter(Q(gamestreaks__away_team_win_streak=item['value']) | Q(gamestreaks__home_team_win_streak=item['value']))
+                    self.result_array_away = tmp_result_array.filter(away_team_win_streak=item['value'])
+                    self.result_array_home = tmp_result_array.filter(home_team_win_streak=item['value'])
+                elif(item['comptype'] == '<'):
+                    self.result_array = tmp_result_array.filter(Q(gamestreaks__away_team_win_streak__lt=item['value'])|Q(gamestreaks__home_team_win_streak__lt=item['value']))
+                    self.result_array_away = tmp_result_array.filter(away_team_win_streak__lt=item['value'])
+                    self.result_array_home = tmp_result_array.filter(home_team_win_streak__lt=item['value'])
+                elif(item['comptype'] == '>'):
+                    self.result_array = tmp_result_array.filter(Q(gamestreaks__away_team_win_streak__gt=item['value'])|Q(gamestreaks__home_team_win_streak__gt=item['value']))
+                    self.result_array_away = tmp_result_array.filter(gamestreaks__away_team_win_streak__gt=item['value'])
+                    self.result_array_home = tmp_result_array.filter(gamestreaks__home_team_win_streak__gt=item['value'])
+                print 'self.result_array_team_b count = %d'%self.result_array.count()
+                #imagine team a is the viking, we want them against teams that have < 500 win_streak.  
+                #make sure to exclude games where only the vikings have < 500 win_streak
+                exclusion_list = []
+                for game in self.result_array:
+                    if(self.team_a_dict.has_key(game.pk)):
+                        if((not self.result_array_away.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.home_team or
+                           (not self.result_array_home.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.away_team):
+                             print 'adding to exclusion list'
+                             exclusion_list.append(game.pk)
+                #print 'self.result_array_team_b count = %d'%self.result_array.count()
+                for gameid in exclusion_list:
+                    self.result_array = self.result_array.exclude(gameid=gameid) 
+                #print 'self.result_array_team_b count = %d'%self.result_array.count()
+                for game in self.result_array:
+                    if(not self.team_a_dict.has_key(game.pk)):
+                        if(self.result_array_away.filter(gameid=game.pk).exists()):
+                            self.team_a_dict[game.pk] = game.home_team
+                        else:
+                            self.team_a_dict[game.pk] = game.away_team
+                  
+            elif(self.use_away_team):
+                if(item['comptype'] == '='):
+                    self.result_array = tmp_result_array.filter(gamestreaks__away_team_win_streak=item['value'])
+                elif(item['comptype'] == '<'):
+                    self.result_array = tmp_result_array.filter(gamestreaks__away_team_win_streak__lt=item['value'])
+                elif(item['comptype'] == '>'):
+                    self.result_array = tmp_result_array.filter(gamestreaks__away_team_win_streak__gt=item['value'])
+                for game in self.result_array:
+                    if(not self.team_a_dict.has_key(game.pk)):
+                        self.team_a_dict[game.pk] = game.home_team
+            else:
+                if(item['comptype'] == '='):
+                    self.result_array = tmp_result_array.filter(gamestreaks__home_team_win_streak=item['value'])
+                elif(item['comptype'] == '<'):
+                    self.result_array = tmp_result_array.filter(gamestreaks__home_team_win_streak__lt=item['value'])
+                elif(item['comptype'] == '>'):
+                    self.result_array = tmp_result_array.filter(gamestreaks__home_team_win_streak__gt=item['value'])
+                for game in self.result_array:
+                    if(not self.team_a_dict.has_key(game.pk)):
+                        self.team_a_dict[game.pk] = game.away_team
+        print "added team_b win_streak conditions" 
+    
+    def filter_by_coach( self, item ):
+        print "about to compute coach conditions"
+        tmp_result_array = result_array
+        tmp_result_array = tmp_result_array.distinct()
+        print "tmp_result_array gathered"
+        #print "tmp_result_array gathered, length = %d"%(tmp_result_array.count())
+        self.team_a_conditions_exist = True
+        coach_name_array = item['value'].split()
+        print 'coach_name_array has length %d'%len(coach_name_array)
+        firstname = coach_name_array[0].lower()
+        if(len(coach_name_array) > 2):
+            lastname = ''
+            for i in range(1,len(coach_name_array)):
+                lastname += coach_name_array[i].lower()
+                if(i != len(coach_name_array) -1):
+                    lastname += ' ' 
+        else:
+            lastname = coach_name_array[1].lower()
+        #logic below will have to be adjusted for multiple coachs with the same name
+        print 'gathered coach name, now lets query'
+        if (Coaches.objects.filter(lastname=lastname, firstname=firstname).exists()):
+            print 'coach exists!'
+            coach = Coaches.objects.filter(lastname=lastname, firstname=firstname)[0]
+            print 'coach id = %d'%int(coach.pk)
+            if(self.use_away_team and not self.use_home_team):
+                print 'using away'
+                self.result_array = tmp_result_array.filter(away_coach=int(coach.pk)) 
+                for game in self.result_array:
+                    if(not team_a_dict.has_key(game.pk)):
+                        self.team_a_dict[game.pk]= game.away_team
+            elif(self.use_home_team and not self.use_away_team):
+                print 'using home'
+                self.result_array = tmp_result_array.filter(home_coach=int(coach.pk)) 
+                for game in self.result_array:
+                    if(not self.team_a_dict.has_key(game.pk)):
+                        self.team_a_dict[game.pk]= game.home_team
+            elif(self.use_away_team and self.use_home_team):
+                self.result_array = tmp_result_array.filter(Q(home_coach=int(coach.pk))|Q(away_coach=int(coach.pk))) 
+                print 'using home and away'
+                for game in self.result_array:
+                    if(not self.team_a_dict.has_key(game.pk)):
+                        if(game.away_coach == coach.pk):
+                            self.team_a_dict[game.pk]= game.away_team
+                        else:
+                            self.team_a_dict[game.pk]= game.home_team
+    
+    def filter_by_opposition_coach( self, item ):
+        print "about to compute coach conditions"
+        tmp_result_array = self.result_array
+        tmp_result_array = tmp_result_array.distinct()
+        print "tmp_team_a_list gathered"
+        self.team_b_conditions_exist = True
+        coach_name_array = item['value'].split()
+        print 'coach_name_array has length %d'%len(coach_name_array)
+        firstname = coach_name_array[0].lower()
+        if(len(coach_name_array) > 2):
+            lastname = ''
+            for i in range(1,len(coach_name_array)):
+                lastname += coach_name_array[i].lower()
+                if(i != len(coach_name_array) -1):
+                    lastname += ' ' 
+        else:
+            lastname = coach_name_array[1].lower()
+        #logic below will have to be adjusted for multiple coachs with the same name
+        if (Coaches.objects.filter(lastname=lastname, firstname=firstname).exists()):
+            print 'coach exists!'
+            coach = Coaches.objects.filter(lastname=lastname, firstname=firstname)[0]
+            if(self.use_away_team and not self.use_home_team):
+                self.result_array = tmp_result_array.filter(away_coach=coach.pk) 
+                for game in self.result_array:
+                    if(not team_a_dict.has_key(game.pk)):
+                        self.team_a_dict[game.pk]= game.home_team
+            elif(not self.use_away_team and self.use_home_team):
+                self.result_array = tmp_result_array.filter(home_coach=coach.pk) 
+                for game in self.result_array:
+                    if(not team_a_dict.has_key(game.pk)):
+                        self.team_a_dict[game.pk]= game.away_team
+            elif(self.use_away_team and self.use_home_team):
+                self.result_array = tmp_result_array.filter(Q(home_coach=coach.pk)|Q(away_coach=coach.pk)) 
+                for game in self.result_array:
+                    if(not team_a_dict.has_key(game.pk)):
+                        if(game.away_coach == coach.pk):
+                            self.team_a_dict[game.pk]= game.home_team
+                        else:
+                            self.team_a_dict[game.pk]= game.away_team
 
-query_tracker = QueryTracker()
+    def get_player_filter( self, name_str ) :
+        player_name_array = name_str.split()
+        print 'player_name_array has length %d'%len(player_name_array)
+        firstname = player_name_array[0].lower()
+        if(len(player_name_array) > 2):
+          lastname = ''
+          for i in range(1,len(player_name_array)):
+            lastname += player_name_array[i].lower()
+            if(i != len(player_name_array) -1):
+              lastname += ' ' 
+        else:
+          lastname = player_name_array[1].lower()
+        #logic below will have to be adjusted for multiple players with the same name
+        player_filter = Players.objects.filter(lastname=lastname, firstname=firstname)
+        if(not player_filter.exists()):
+          player_filter_nickname = get_nickname(lastname,firstname) 
+          if(player_filter_nickname != None):
+            player_filter = player_filter_nickname
+            lastname=player_filter[0].lastname
+            firstname=player_filter[0].firstname
+        return player_filter
+    
+    def get_player_game_list( self, player_filter ):
+        print 'player exists!'
+        if(player_filter.count() == 1):
+          self.player = player_filter[0]
+          nonunique = False
+        else:
+          self.player = resolve_nonunique_players(lastname,firstname)
+          nonunique = True
+        self.queried_players.append(self.player)
+        self.player_game_list = self.player.games.only('gameid').all()
+        print 'player game list gathered size = %d'%(self.player_game_list.count())
+    
+    def get_active_status( self, game ):
+        player_game = game.gameplayers_set.filter(playerid=self.player)[0]
+        #print 'game contain player position = %s'%positions[position]
+        if(positions[self.player.position] in ['RB','FB','WR','TE','RBWR']):
+          #print 'player %s %s is not QB'%(player_game.playerid.firstname, player_game.playerid.lastname)
+          if(RbWrGameStats.objects.filter(gameplayer=player_game).exists()):
+            isactive = player_game.rbwrgamestats.G
+          else:
+            isactive = False
+        elif(positions[self.player.position] == 'QB'):
+          #print 'player %s %s is QB'%(player_game.playerid.firstname, player_game.playerid.lastname)
+          if(QbGameStats.objects.filter(gameplayer=player_game).exists()):
+            isactive = player_game.qbgamestats.G and (player_game.qbgamestats.GS or player_game.gameid.date < datetime.date(1993,1,1))
+          else:
+            isactive = False
+        else:
+          #print 'player %s %s is not QB or rb/wr'%(player_game.playerid.firstname, player_game.playerid.lastname)
+          isactive = True
+        return isactive
+    
+    def exclude_games(self,  game_list, exclusion_list ):
+        if(len(exclusion_list) > 0):
+            count = 0
+            tmp_exclusion_list = []
+            for i in exclusion_list:
+                count = (count + 1)%500
+                tmp_exclusion_list.append(i)
+                if(count == 0):
+                    tmp = game_list.exclude(gameid__in=tmp_exclusion_list)
+                    tmp_exclusion_list = []
+            game_list = game_list.exclude(gameid__in=tmp_exclusion_list)
+        return game_list
 
+    def filter_by_player( self, item, team ):
+        print "about to compute player conditions team = %s use_away_team = %d use_home_team = %d" % ( team, self.use_away_team, self.use_home_team )
+        tmp_result_array = self.result_array.distinct()
+        print "tmp_result_array gathered"
+        #print "tmp_result_array gathered, length = %d"%(tmp_result_array.count())
+        self.team_a_conditions_exist = True
+        player_filter = self.get_player_filter( item['value'] )
+        if (player_filter.exists()):
+            self.get_player_game_list( player_filter )
+        else:
+            print 'no such player %s %s'%(player_name_array[0], player_name_array[1])
+            self.player_game_list = []
+            tmp_result_array = []
+        exclusion_list = []
+        ##performance experiment, not required for functionality
+        player_game_pk_list = []
+        for gm in self.player_game_list:
+            player_game_pk_list.append(gm.pk)
+        tmp_result_array = tmp_result_array.filter(pk__in=player_game_pk_list)
+        ##end of experiment
+        for game in tmp_result_array:
+            #cond 1: player played in game
+            if(self.player_game_list.filter(pk=game.pk).exists()):
+                isactive = self.get_active_status(game)
+                if(isactive):
+                    #if team_a_dict not assigned it means we have yet to constrain this game.  go ahead and add it to list
+                    # otherwise, make sure the team hes on is the team we are looking for
+                    away = GamePlayers.objects.get(gameid=game.pk, playerid=self.player.pk).away
+                    if(away and team == 'a' or ( not away ) and team == 'b' ):
+                        team_a_away = True
+                        if(not self.team_a_dict.has_key(game.pk)):
+                            self.team_a_dict[game.pk] = game.away_team
+                    else:
+                        team_a_away = False
+                        if(not self.team_a_dict.has_key(game.pk)):
+                            self.team_a_dict[game.pk] = game.home_team
+                    if(          team_a_away  and not ( self.use_away_team and team == 'a' or self.use_home_team and team == 'b' ) ):
+                        exclusion_list.append(game.pk)
+                    elif( ( not team_a_away ) and not ( self.use_home_team and team == 'a' or self.use_away_team and team == 'b' ) ):
+                        exclusion_list.append(game.pk)
+                else:
+                    print 'player was not active'
+                    exclusion_list.append(game.pk)
+            else:
+                exclusion_list.append(game.pk)
+        #print 'begin player based exclusion tmp_result_array size = %d exclusion_list size = %d'%(tmp_result_array.count(), len(exclusion_list))
+        tmp_result_array = self.exclude_games( tmp_result_array, exclusion_list )
+        self.result_array = tmp_result_array
+        print 'end player based exclusion tmp_result_array size = %d'%(len(self.result_array))
 
+    def get_game_data( self ):
+        iteration = 0
+        self.numgames = float(len(self.final_result_array))
+        self.numgamesint = len(self.final_result_array)
+        gameset = Games.objects.only('gameid','date','away_team','home_team','away_team_spread','over_under',
+                                     'over_under','away_team_score','home_team_score','week','season')
+        while((1000*iteration) <= self.numgamesint):
+            self.result_array = gameset.filter(pk__in=self.final_result_array[1000*(iteration):1000*(iteration+1)-1])
+            iteration += 1
+            print 'iterate over result array'
+            for item in self.result_array:
+                if(self.team_a_dict.get(item.pk,-1) == item.away_team):
+                    self.teama_points += item.away_team_score
+                    self.teamb_points += item.home_team_score
+                else:
+                    self.teamb_points += item.away_team_score
+                    self.teama_points += item.home_team_score
+                #away team wins
+                if(((item.away_team_score + item.away_team_spread)  - item.home_team_score) > 0): 
+                    if(self.team_a_dict.get(item.pk,-1) == item.away_team):
+                        self.teama_spreadwins += 1
+                    else:
+                        self.teamb_spreadwins += 1
+                #home team wins
+                elif(((item.away_team_score + item.away_team_spread)  - item.home_team_score) < 0): 
+                    if(self.team_a_dict.get(item.pk,-1) == item.away_team):
+                        self.teamb_spreadwins += 1
+                    else:
+                        self.teama_spreadwins += 1
+                #draw
+                elif(self.push_goes_to_bookie):
+                    pass
+                if((item.away_team_score  - item.home_team_score) > 0): 
+                    if(self.team_a_dict.get(item.pk,-1) == item.away_team):
+                        self.teama_wins += 1
+                    else:
+                        self.teamb_wins += 1
+                #home team wins
+                elif((item.away_team_score  - item.home_team_score) < 0): 
+                    if(self.team_a_dict.get(item.pk,-1) == item.away_team):
+                        self.teamb_wins += 1
+                    else:
+                        self.teama_wins += 1
+                #the over covers
+                if((item.away_team_score  + item.home_team_score) > item.over_under): 
+                    self.over_wins +=1
+            
+                self.response['result_table'] += [item.season,item.week,item.away_team, item.away_team_score, item.home_team, item.home_team_score,str(item.away_team_spread),str(item.over_under), self.team_a_dict.get(item.pk,-1)]
+        #aggregate data/summaries
+        print 'calculating summaries, self.numgames = %d'%self.numgames
+        #preventdiv by 0
+        if(self.numgames == 0):
+            self.numgames = 1
+        self.response['teama_summary'] = ['%.2f'%(float(self.teama_spreadwins)/self.numgames), '%.2f'%(float(self.teama_wins)/self.numgames), '%.2f'%(self.over_wins/self.numgames), '%.2f'%(self.teama_points/self.numgames), '%.2f'%(self.teamb_points/self.numgames)]
+        self.response['teamb_summary'] = ['%.2f'%(float(self.teamb_spreadwins)/self.numgames), '%.2f'%(float(self.teamb_wins)/self.numgames), '%.2f'%(self.over_wins/self.numgames), '%.2f'%(self.teamb_points/self.numgames), '%.2f'%(self.teama_points/self.numgames)]
+
+    def get_summary_hist( self ):
+          print 'about to do summary hist'
+          int_ats = int(100*float(self.teama_spreadwins)/self.numgames) 
+          int_wp = int(100*float(self.teama_wins)/self.numgames) 
+          int_ou = int(100*float(self.over_wins)/self.numgames)  
+          plotdata = [int_ats,int_wp,int_ou]
+          color_array = get_color_array([int_ats,int_wp,int_ou])
+          print 'color array:'
+          print color_array
+          timestamp = str(time.time())
+          self.response['teamsumchart'] = 'teamsum_'+timestamp+'.png'
+          teamsumchart_fullpath = settings.STATIC_ROOT+'teamsum_'+timestamp+'.png'
+          print 'about to use cairoplot'
+          if(plotting):
+              cairoplot.vertical_bar_plot (  teamsumchart_fullpath, plotdata, 550, 400, border = 50, grid = True, rounded_corners = True,display_values = True, x_labels=['ATS', 'Win%', 'Over Covers'], colors=color_array)
+
+    def get_player_data( self ):
+        print 'collecting player stats'
+        self.queried_players = uniq(self.queried_players)
+        player_sums = []
+        #A NOTE ON THE FOLLOWING:  We broke down the result array above for large game sets (> 1000)
+        #no player gameset will be greater than a few hundred, so its not needed here, so we go back to 
+        #full result array
+        self.result_array = Games.objects.filter(pk__in=self.final_result_array).only('date','gameid')
+        for playa in self.queried_players:
+            print 'collecting stats for playa %s %s'%(playa.firstname,playa.lastname)
+            #determine if this player has stats, currently only offensive position players
+            positionstr = positions[playa.position] 
+            if(positionstr in ['RB','FB','WR','TE','QB','RBWR'] or
+                 positionstr in ['CB','DB','DE','DL', 'DT','FS', 'ILB', 'LB', 'LS', 'MLB', 'NT', 'OLB', 'SAF','SS','DEF']):
+                rush_array = []
+                pass_array = []
+                totalyds_array = []
+                date_array = []
+                print 'about to gather playa stats for each game' 
+                firstgame = True
+                player_has_stats = False
+                for item in self.result_array:
+                    #on the first game for ech player determine if we have any stats for them
+                    if(firstgame):
+                        print 'firstgame'
+                        player_sums = []
+                        firstgame = False
+                        #this is just a tes.  Is server side json un able to handle the mixed array sizes?
+                        self.response['player_table'].extend(['hdr', playa.lastname, playa.firstname,playa.position])
+                        #print 'first game is gameid %d playerid %d'%(item.pk, playa.pk)
+                        #gp = GamePlayers.objects.filter(gameid=item.pk, playerid=playa.pk)[0]
+                        player_game_list = GamePlayers.objects.filter(playerid=playa.pk)
+                        #player_game_list = GamePlayers.objects.filter(playerid=playa.pk).filter(gameid__in=self.result_array)
+                        print 'grab numstats'
+                        #seems __in is a big perf loss, just set numstats to True for now
+                        numstats = True
+                        if(numstats):
+                            print 'playr has stats'
+                            player_has_stats = True
+                            games_active = 0
+                            #first filter fr playerid
+                            if(positionstr in ['RB','FB','WR','TE','RBWR']):
+                                print 'initialize player sums'
+                                player_sums = [0,0,0,0,0,0]
+                                self.response['rbwrs_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
+                                self.response['players_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
+                                #gpstatarray = RbWrGameStats.objects.filter(gameplayer__in=player_game_list).defer('FUM','Lost','RushAtt','RecLng','RecTD')
+                            elif(positionstr == 'QB'):
+                                player_sums = [0,0,0,0,0]
+                                self.response['qbs_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
+                                self.response['players_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
+                                #gpstatarray = QbGameStats.objects.filter(gameplayer__in=player_game_list).defer('Pct','Avg','Int','Sck','SckY','RushAtt','RushYds','RushAvg','RushTD','FUM','Lost')
+                            elif(positionstr in ['CB','DB','DE','DL', 'DT','FS', 'ILB', 'LB', 'LS', 'MLB', 'NT', 'OLB', 'SAF','SS','DEF']):
+                                print 'player is on def'
+                                player_sums = [0,0,0]
+                                self.response['defs_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
+                                #gpstatarray = DefGameStats.objects.filter(gameplayer__in=player_game_list)
+                    if(player_has_stats): 
+                        #print 'grab gp object'
+                        gp = player_game_list.get(gameid=item.pk)
+                        if(positionstr in ['RB','FB','WR','TE','RBWR']):
+                            #print 'grab wr/rb stats'
+                            #gpstatsarray = RbWrGameStats.objects.filter(gameplayer_id = gp.pk)
+                            #try removing gpstatarray.  its generated by __in which is costly
+                            #if(gpstatarray.filter(gameplayer_id = gp.pk).exists()):
+                            #  gpstats = gpstatarray.filter(gameplayer_id = gp.pk)[0]
+                            if(RbWrGameStats.objects.filter(gameplayer_id = gp.pk).exists()):
+                                gpstats = RbWrGameStats.objects.filter(gameplayer_id = gp.pk)[0]
+                            #print 'RbWrstat retrieved'
+                            self.response['player_table'].extend([str(gpstats.RushYds),str(gpstats.RushTD), str(gpstats.RecYds),str(gpstats.RecTD)])
+                            #we sum up the stats for each game in the avg array.  at the end we will divide byt total number of games
+                            statnum = 0
+                            #only add stat if the player was actuve (G=True means active.  For QBs we may later want to do GS (started)
+                            if(gpstats.G):
+                                games_active += 1
+                                for stat in [gpstats.RushYds,gpstats.RushAvg,gpstats.RushTD, gpstats.RecYds,gpstats.RecAvg,gpstats.RecTD]:
+                                    player_sums[statnum] += stat
+                                    statnum += 1
+                                rush_array.append(gpstats.RushYds)
+                                pass_array.append(gpstats.RecYds)
+                                totalyds_array.append(gpstats.RecYds+gpstats.RushYds)
+                                date_array.append(str(item.date))
+                        elif(positionstr == 'QB'):
+                            #gpstatsarray = QbGameStats.objects.filter(gameplayer_id = gp.pk)
+                            if(QbGameStats.objects.filter(gameplayer_id = gp.pk).exists()):
+                                gpstats = QbGameStats.objects.filter(gameplayer_id = gp.pk)[0]
+                            #print 'Qbstat retrieved'
+                            self.response['player_table'].extend([str(gpstats.Comp), str(gpstats.Att), str(gpstats.Yds),str(gpstats.TD),str(gpstats.Rate)])
+                            #we sum up the stats for each game in the avg array.  at the end we will divide byt total number of games
+                            statnum = 0
+                            #For QBs only add stat if the player started (GS=True means started) 
+                            if(gpstats.GS):
+                                games_active += 1
+                                for stat in [gpstats.Comp, gpstats.Att, gpstats.Yds,gpstats.TD,gpstats.Rate]:
+                                    player_sums[statnum] += stat
+                                    statnum += 1
+                                rush_array.append(gpstats.RushYds)
+                                pass_array.append(gpstats.Yds)
+                                total_yds = gpstats.Yds+gpstats.RushYds
+                                totalyds_array.append(total_yds)
+                                date_array.append(str(item.date))
+                        elif(positionstr in ['CB','DB','DE','DL', 'DT','FS', 'ILB', 'LB', 'LS', 'MLB', 'NT', 'OLB', 'SAF','SS','DEF']):
+                              #gpstatsarray = DefGameStats.objects.filter(gameplayer_id = gp.pk)
+                              print 'collect def stats'
+                              if(DefGameStats.objects.filter(gameplayer_id = gp.pk).exists()):
+                                  gpstats = DefGameStats.objects.filter(gameplayer_id = gp.pk)[0]
+                              print 'collected def stats'
+                              #print 'Defstat retrieved'
+                              self.response['player_table'].extend([str(gpstats.Tck), str(gpstats.Sck), str(gpstats.Int)])
+                              #we sum up the stats for each game in the avg array.  at the end we will divide byt total number of games
+                              statnum = 0
+                              #For Def only add stat if the player started (GS=True means started) 
+                              #might change this later
+                              if(gpstats.GS):
+                                  print 'player active'
+                                  games_active += 1
+                                  for stat in [gpstats.Tck, gpstats.Sck, gpstats.Int]:
+                                      player_sums[statnum] += stat
+                                      statnum += 1
+                ##we are done with a particular player, calculate the stat avgs based on sums 
+                player_avgs = []
+                print 'calculating avgs'
+                for stat in player_sums:
+                    ##for now ill print 0 if 0 games active, maybe later ill change this
+                    if(games_active != 0):
+                        player_avgs.append('%.1f'%(stat/games_active))
+                    else:
+                        player_avgs.append(0)
+                if(positions[playa.position] == 'QB'):
+                    self.response['qb_avgs'].append(player_avgs) 
+                elif(positions[playa.position] in ['WR','RB','FB','TE','RBWR']):
+                    self.response['rbwr_avgs'].append(player_avgs) 
+                else:
+                    self.response['def_avgs'].append(player_avgs) 
+          
+                if(pass_array != []):
+                    ##now create histograms
+                    #total yds
+                    totalyds_hist = get_hist(totalyds_array)
+                    timestamp = str(time.time())
+                    if(positions[playa.position] == 'QB'):
+                        self.response['qb_charts'].append('totalydshist_'+timestamp+'.png')
+                    else:
+                        self.response['rbwr_charts'].append('totalydshist_'+timestamp+'.png')
+                    histchart_fullpath = settings.STATIC_ROOT+'totalydshist_'+timestamp+'.png'
+                    print 'creating passhist'
+                    if(plotting):
+                        cairoplot.vertical_bar_plot (  histchart_fullpath, totalyds_hist[1], 550, 400, border = 50, grid = True, rounded_corners = True,display_values = True,x_labels=totalyds_hist[0])
+                    print 'totalydshist created'
+        print 'player stats collected'
+      
 #counting sort, mightbe faster when sorting by yr
 def count_sort (array):
     year_array = [0 for i in range(1966,2020)]
@@ -495,869 +1485,21 @@ def get_home_away_conditions( team_a_conditions, team_b_conditions ):
             use_away_team = False
     return ( use_home_team, use_away_team )
 
-def filter_by_season( item ):
-    print "about to compute season conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by season/week/other team neutral conditions yet
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-        tmp_team_a_list = query_tracker.gameset
-    else:
-        tmp_team_a_list = query_tracker.result_array
-        query_tracker.result_array = []
-    #print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
-    query_tracker.team_a_conditions_exist = True
-    print "about to filter on comptype"
-    if(item['comptype'] == '='):
-        tmp_team_a_list = tmp_team_a_list.filter(season=int(item['value']))
-    elif(item['comptype'] == '<'):
-        tmp_team_a_list = tmp_team_a_list.filter(season__lt=int(item['value']))
-    elif(item['comptype'] == '>'):
-        tmp_team_a_list = tmp_team_a_list.filter(season__gt=int(item['value']))
-    query_tracker.result_array = tmp_team_a_list  
-
-def filter_by_week( item ):
-    print "about to compute week conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by week/week/oter team neutral conditions yet
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-        print "first condition"
-        tmp_team_a_list = query_tracker.gameset 
-    else:
-        tmp_team_a_list = query_tracker.result_array
-        query_tracker.result_array = []
-    print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
-    query_tracker.team_a_conditions_exist = True
-    print "about to filter on comptype"
-    if(item['comptype'] == '='):
-        if(int(item['value']) < 21):
-            tmp_team_a_list = tmp_team_a_list.filter(week=int(item['value']))
-        else:
-            #some years the SuperBowl is wk 22
-            tmp_team_a_list = tmp_team_a_list.filter(week__gte=21)
-        
-    elif(item['comptype'] == '<'):
-        tmp_team_a_list = tmp_team_a_list.filter(week__lt=int(item['value']))
-    elif(item['comptype'] == '>'):
-        tmp_team_a_list = tmp_team_a_list.filter(week__gt=int(item['value']))
-    query_tracker.result_array = tmp_team_a_list  
-
-def filter_by_fieldtype( item ):
-    print "about to compute fieldtype conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by week/week/oter team neutral conditions yet
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-      print "first condition"
-      tmp_team_a_list = query_tracker.gameset 
-    else:
-      tmp_team_a_list = query_tracker.result_array
-      query_tracker.result_array = []
-    print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
-    query_tracker.team_a_conditions_exist = True
-    tmp_team_a_list = tmp_team_a_list.filter(fieldtype=item['value'])
-    query_tracker.result_array = tmp_team_a_list  
-
-def filter_by_temperature( item ):
-    print "about to compute temperature conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by week/week/oter team neutral conditions yet
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-        print "first condition"
-        tmp_team_a_list = GameExtras.objects.filter(game__in=query_tracker.gameset).exclude(temperature=-100)
-    else:
-        tmp_team_a_list = GameExtras.objects.filter(game__in=query_tracker.result_array).exclude(temperature=-100)
-        query_tracker.result_array = []
-    print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
-    query_tracker.team_a_conditions_exist = True
-    if(item['comptype'] == '='):
-        tmp_team_a_list = tmp_team_a_list.filter(temperature=int(item['value']))
-    elif(item['comptype'] == '<'):
-        tmp_team_a_list = tmp_team_a_list.filter(temperature__lt=int(item['value']))
-    elif(item['comptype'] == '>'):
-        tmp_team_a_list = tmp_team_a_list.filter(temperature__gt=int(item['value']))
-    query_tracker.result_array = Games.objects.filter(gameextras__in=tmp_team_a_list)
-
-def filter_by_wind( item ):
-    print "about to compute wind conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by week/week/oter team neutral conditions yet
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-        print "first condition"
-        tmp_team_a_list = GameExtras.objects.filter(game__in=query_tracker.gameset).exclude(windspeed=-100) 
-    else:
-        tmp_team_a_list = GameExtras.objects.filter(game__in=query_tracker.result_array).exclude(windspeed=-100)
-        query_tracker.result_array = []
-    print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
-    query_tracker.team_a_conditions_exist = True
-    if(item['comptype'] == '='):
-        tmp_team_a_list = tmp_team_a_list.filter(windspeed=int(item['value']))
-    elif(item['comptype'] == '<'):
-        tmp_team_a_list = tmp_team_a_list.filter(windspeed__lt=int(item['value']))
-    elif(item['comptype'] == '>'):
-        tmp_team_a_list = tmp_team_a_list.filter(windspeed__gt=int(item['value']))
-    query_tracker.result_array = Games.objects.filter(gameextras__in=tmp_team_a_list)
-
-def filter_by_humidity( item ):
-    print "about to compute humidity conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by week/week/oter team neutral conditions yet
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-        print "first condition"
-        tmp_team_a_list = GameExtras.objects.filter(game__in=query_tracker.gameset).exclude(humidity=-100) 
-    else:
-        tmp_team_a_list = GameExtras.objects.filter(game__in=query_tracker.result_array).exclude(humidity=-100)
-        query_tracker.result_array = []
-    print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
-    query_tracker.team_a_conditions_exist = True
-    if(item['comptype'] == '='):
-        tmp_team_a_list = tmp_team_a_list.filter(humidity=int(item['value']))
-    elif(item['comptype'] == '<'):
-        tmp_team_a_list = tmp_team_a_list.filter(humidity__lt=int(item['value']))
-    elif(item['comptype'] == '>'):
-        tmp_team_a_list = tmp_team_a_list.filter(humidity__gt=int(item['value']))
-    query_tracker.result_array = Games.objects.filter(gameextras__in=tmp_team_a_list)
-
-def filter_by_over_under( item ):
-    print "about to compute over_under conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by over_under/week/oter team neutral conditions yet
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-        tmp_team_a_list = query_tracker.gameset.filter(over_under__gt=0) 
-    else:
-        tmp_team_a_list = query_tracker.result_array.filter(over_under__gt=0)
-        query_tracker.result_array = []
-    team_a_conditions_exist = True
-    print "about to filter on comptype"
-    if(item['comptype'] == '='):
-        tmp_team_a_list = tmp_team_a_list.filter(over_under=int(item['value']))
-    elif(item['comptype'] == '<'):
-        tmp_team_a_list = tmp_team_a_list.filter(over_under__lt=int(item['value']))
-    elif(item['comptype'] == '>'):
-        tmp_team_a_list = tmp_team_a_list.filter(over_under__gt=int(item['value']))
-    query_tracker.result_array = tmp_team_a_list  
-
-def filter_by_group( item ):
-    print ("Querying %s"% groups[int(item['value'])])
-    #if at this point the results array is empty, it means we havent filtered 
-    #by season/week/other team neutral conditions yet
-    if(not query_tracker.team_a_conditions_exist):
-        tmp_team_a_list = query_tracker.gameset 
-    else:
-        tmp_team_a_list = query_tracker.result_array
-        query_tracker.result_array = []
-    print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
-    query_tracker.team_a_conditions_exist = True
-    team_a_index_list = []
-    for team in groups[int(item['value'])]:
-        team_index = teams.index(team)
-        query_tracker.team_a_list.append(team)
-        team_a_index_list.append(team_index)
-    if(query_tracker.use_away_team and not query_tracker.use_home_team):
-        query_tracker.result_array =  tmp_team_a_list.filter(away_team__in=team_a_index_list)
-        for game in query_tracker.result_array:
-            query_tracker.team_a_dict[game.pk] = game.away_team
-    elif(query_tracker.use_home_team and not query_tracker.use_away_team):
-        print 'size result_array before team filter: %d'%(tmp_team_a_list.count())
-        query_tracker.result_array =  tmp_team_a_list.filter(home_team__in=team_a_index_list)
-        print 'size result_array after team filter: %d'%(result_array.count())
-        for game in query_tracker.result_array:
-            query_tracker.team_a_dict[game.pk] = game.home_team
-    elif(query_tracker.use_home_team and query_tracker.use_away_team): 
-        query_tracker.result_array =  tmp_team_a_list.filter(Q(home_team__in=team_a_index_list)|Q(away_team__in=team_a_index_list))
-        for game in result_array:
-            if(game.home_team in team_a_index_list): 
-                query_tracker.team_a_dict[game.pk] = game.home_team
-            else:
-                query_tracker.team_a_dict[game.pk] = game.away_team
-
-def filter_by_opposition_group( item ):
-    print("team b has group conditions")
-    if(not query_tracker.team_b_conditions_exist):
-      tmp_result_array = query_tracker.result_array
-    else:
-      tmp_result_array = []
-    query_tracker.team_b_conditions_exist = True
-    #print 'result size before group condition filtering is %d'%tmp_result_array.count()
-    team_b_index_list = []
-    team_a_index_list = []
-    for t in query_tracker.team_a_list:
-      team_a_index_list.append(query_tracker.team_a_list.index(t))
-    for team in groups[int(item['value'])]:
-      #explanation of following condition: Jets vs AFC east
-      #in team a filter we get jets vs SF.  Now we want to remove SF
-      #but since jets are in AFC east, they will not be removed (without this condition)  
-      team_index = teams.index(team)
-      print "searching for team b = %s, index %d"%(team,team_index)
-      if(query_tracker.team_a_list.count(team) == 0):
-        team_index = teams.index(team)
-        team_b_index_list.append(team_index)
-    if(query_tracker.use_away_team and not query_tracker.use_home_team):
-      print 'using away'
-      for t in teams:
-        if(teams.index(t) not in team_b_index_list and teams.index(t) not in team_a_index_list):
-          print 'excluding %s %d from final results size of results now = %d'%(t,teams.index(t),tmp_result_array.count())
-          tmp_result_array =  tmp_result_array.exclude(Q(away_team=int(teams.index(t))))
-      query_tracker.result_array = tmp_result_array
-      for game in query_tracker.result_array:
-        query_tracker.team_a_dict[game.pk] = game.home_team
-    elif(query_tracker.use_home_team and not query_tracker.use_away_team):
-      print 'using home'
-      print team_b_index_list
-      for t in teams:
-        if(teams.index(t) not in team_b_index_list and teams.index(t) not in team_a_index_list):
-          tmp_result_array =  tmp_result_array.exclude(home_team=teams.index(t))
-      query_tracker.result_array = tmp_result_array
-      for game in query_tracker.result_array:
-        result_query.team_a_dict[game.pk] = game.away_team
-    elif(query_tracker.use_home_team and query_tracker.use_away_team): 
-      print 'using home and away, length of team list is %d'%(len(team_b_index_list))
-      for game in tmp_result_array:
-        if(result_query.team_a_dict[game.pk] == game.away_team and (game.home_team not in team_b_index_list) or
-           result_query.team_a_dict[game.pk] == game.home_team and (game.away_team not in team_b_index_list)):
-          print 'excluding!'
-          tmp_result_array =  tmp_result_array.exclude(gameid=game.pk)
-      query_tracker.result_array = tmp_result_array  
-    print 'team b group condition check is complete'
-
-def filter_by_team( item ):
-    print "about to compute  team conditions"
-    query_tracker.team_a_list.append(teams[int(item['value'])])
-    #if at this point the results array is empty, it means we havent filtered 
-    #by season/week/other team neutral conditions yet
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-        tmp_result_array = query_tracker.gameset 
-    else:
-        tmp_result_array = query_tracker.result_array
-    query_tracker.team_a_conditions_exist = True
-    print "tmp_result_array gathered, length = %d"%len(tmp_result_array)
-    print 'calculate for away team'
-    if(query_tracker.use_away_team and not query_tracker.use_home_team):
-        query_tracker.result_array = tmp_result_array.filter(away_team=int(item['value']))
-        for game in query_tracker.result_array:
-            query_tracker.team_a_dict[game.pk] = game.away_team
-    elif(query_tracker.use_home_team and not query_tracker.use_away_team):
-        query_tracker.result_array = tmp_result_array.filter(home_team=int(item['value']))
-        for game in query_tracker.result_array:
-            query_tracker.team_a_dict[game.pk] = game.home_team
-    elif(query_tracker.use_home_team and query_tracker.use_away_team):
-        query_tracker.result_array = tmp_result_array.filter(Q(home_team=int(item['value'])) | Q(away_team=int(item['value'])))
-        for game in query_tracker.result_array:
-            if(int(item['value']) == game.home_team):
-                query_tracker.team_a_dict[game.pk] = game.home_team
-            else:
-                query_tracker.team_a_dict[game.pk] = game.away_team
-
-def filter_by_opposition_team( item ):
-    print "about to filter team b by team"
-    if(not query_tracker.team_b_conditions_exist):
-        tmp_team_b_list = query_tracker.result_array
-    else:
-        tmp_team_b_list = query_tracker.result_array
-    query_tracker.team_b_conditions_exist = True
-    if(query_tracker.use_away_team and not query_tracker.use_home_team):
-        query_tracker.result_array = tmp_team_b_list.filter(away_team=int(item['value']))
-        for game in query_tracker.result_array:
-            query_tracker.team_a_dict[game.pk] = game.home_team
-    elif(query_tracker.use_home_team and not query_tracker.use_away_team):
-        query_tracker.result_array = tmp_team_b_list.filter(home_team=int(item['value']))
-        for game in query_tracker.result_array:
-            query_tracker.team_a_dict[game.pk] = game.away_team
-    elif(query_tracker.use_home_team and query_tracker.use_away_team):
-        query_tracker.result_array = tmp_team_b_list.filter(Q(home_team=int(item['value'])) | Q(away_team=int(item['value'])))
-        for game in query_tracker.result_array:
-            if(int(item['value']) == game.home_team):
-                query_tracker.team_a_dict[game.pk] = game.away_team
-            else:
-                query_tracker.team_a_dict[game.pk] = game.home_team
-    print "done filtering team b by team, length of result array is %d"%(query_tracker.result_array.count())
-
-def filter_by_spread( item ):
-    print "about to compute spread conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by team/conf yet and so we have to  take everything
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-        #-100 indicates we dont have spread info, which is true of games < 1978
-        tmp_team_a_list = query_tracker.gameset.filter(away_team_spread__gt=-100) 
-    else:
-        tmp_team_a_list = query_tracker.result_array.filter(away_team_spread__gt=-100)
-        query_tracker.result_array = []
-    query_tracker.team_a_conditions_exist = True
-    #print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
-    if(query_tracker.use_away_team and query_tracker.use_home_team):
-        print 'using home and away'
-        #gather games that might satisfy our results if the satisfying teams are in our dict
-        if(item['comptype'] == '='):
-            tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread=Decimal(item['value'])) | Q(away_team_spread=-1*Decimal(item['value'])))
-        elif(item['comptype'] == '<'):
-            tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread__lt=Decimal(item['value']))|Q(away_team_spread__gt=-1*Decimal(item['value'])))
-        elif(item['comptype'] == '>'):
-            tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread__gt=Decimal(item['value']))|Q(away_team_spread__lt=-1*Decimal(item['value'])))
-    elif(query_tracker.use_away_team):
-        print 'using just away'
-        if(item['comptype'] == '='):
-            tmp_result_array = tmp_team_a_list.filter(away_team_spread=Decimal(item['value']))
-        elif(item['comptype'] == '<'):
-            tmp_result_array = tmp_team_a_list.filter(away_team_spread__lt=Decimal(item['value']))
-        elif(item['comptype'] == '>'):
-            tmp_result_array = tmp_team_a_list.filter(away_team_spread__gt=Decimal(item['value']))
-    else:
-        print 'using just home'
-        if(item['comptype'] == '='):
-            tmp_result_array = tmp_team_a_list.filter(away_team_spread=-1*Decimal(item['value']))
-        elif(item['comptype'] == '<'):
-            tmp_result_array = tmp_team_a_list.filter(away_team_spread__gt=-1*Decimal(item['value']))
-        elif(item['comptype'] == '>'):
-            tmp_result_array = tmp_team_a_list.filter(away_team_spread__lt=-1*Decimal(item['value']))
-   
-    print 'gather comparrison arrays to determine team_a_dict'
-    #gather the results where the away team satisfies 
-    if(item['comptype'] == '='):
-        tmp_result_array_away = tmp_team_a_list.filter(away_team_spread=Decimal(item['value']))
-    elif(item['comptype'] == '<'):
-        tmp_result_array_away = tmp_team_a_list.filter(away_team_spread__lt=Decimal(item['value']))
-    elif(item['comptype'] == '>'):
-        tmp_result_array_away = tmp_team_a_list.filter(away_team_spread__gt=Decimal(item['value']))
-    #gather the results where the home team satisfies 
-    if(item['comptype'] == '='):
-        tmp_result_array_home = tmp_team_a_list.filter(away_team_spread=-1*Decimal(item['value']))
-    elif(item['comptype'] == '<'):
-        tmp_result_array_home = tmp_team_a_list.filter(away_team_spread__gt=-1*Decimal(item['value']))
-    elif(item['comptype'] == '>'):
-        tmp_result_array_home = tmp_team_a_list.filter(away_team_spread__lt=-1*Decimal(item['value']))
-    #iterate over team a dict, determine which team is team a, and if a game was included where satisfying team is not team a, exclude them
-    print 'generate exclusion_list'
-    exclusion_pk_list = []
-    for game in tmp_result_array:
-        game_pk = game.pk
-        if(not query_tracker.team_a_dict.has_key(game_pk)):
-            if(tmp_result_array_away.filter(gameid=game_pk).exists()):
-                query_tracker.team_a_dict[game_pk] = game.away_team
-            else:
-                query_tracker.team_a_dict[game_pk] = game.home_team
-        elif(query_tracker.team_a_dict[game_pk] == game.away_team):
-            if(tmp_result_array_away.filter(gameid=game_pk).exists()):
-                query_tracker.team_a_dict[game_pk] = game.away_team
-            else:
-                exclusion_pk_list.append(game_pk)
-        elif(query_tracker.team_a_dict[game_pk] == game.home_team):
-            if(tmp_result_array_home.filter(gameid=game_pk).exists()):
-                query_tracker.query_tracker.team_a_dict[game_pk] = game.home_team
-            else:
-                 exclusion_pk_list.append(game_pk)
-    #testing exclude
-    print 'exclusion_list computed.  length = %d'%(len(exclusion_pk_list))
-    if(exclusion_pk_list != []):
-        for key in exclusion_pk_list:
-            tmp_result_array = tmp_result_array.exclude(gameid=key)
-        query_tracker.result_array = tmp_result_array
-    else:
-        query_tracker.result_array = tmp_result_array
-    print 'spread conditions computed.  length = %d'%(result_array.count())
-
-def filter_by_win_percentage( item ):
-    print "about to compute WinPercentage conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by team/conf/spread yet and so we have to  take everything
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-      tmp_team_a_list = query_tracker.gameset 
-    else:
-      tmp_team_a_list = result_array
-      query_tracker.result_array = []
-    query_tracker.team_a_conditions_exist = True
-    if(query_tracker.use_away_team and query_tracker.use_home_team):
-      #a note on the team a dict for win%:
-      # as a stand alone feature, the win% only makes sense if both teams are assigned miutually exclusive
-      #constraints.  Like a +500 team versus a minus 500.   So, if home and away are being used
-      # I only assign to the team_a_dict in the team_b constraints
-      if(item['comptype'] == '='):
-        query_tracker.result_array = tmp_team_a_list.filter(Q(away_team_record=Decimal(item['value'])) | Q(home_team_record=Decimal(item['value'])))
-        result_array_away = tmp_team_a_list.filter(away_team_record=Decimal(item['value']))
-        result_array_home = tmp_team_a_list.filter(home_team_record=Decimal(item['value']))
-      elif(item['comptype'] == '<'):
-        query_tracker.result_array = tmp_team_a_list.filter(Q(away_team_record__lt=Decimal(item['value']))|Q(home_team_record__lt=Decimal(item['value'])))
-        result_array_away = tmp_team_a_list.filter(away_team_record__lt=Decimal(item['value']))
-        result_array_home = tmp_team_a_list.filter(home_team_record__lt=Decimal(item['value']))
-      elif(item['comptype'] == '>'):
-        query_tracker.result_array = tmp_team_a_list.filter(Q(away_team_record__gt=Decimal(item['value']))|Q(home_team_record__gt=Decimal(item['value'])))
-        result_array_away = tmp_team_a_list.filter(away_team_record__gt=Decimal(item['value']))
-        result_array_home = tmp_team_a_list.filter(home_team_record__gt=Decimal(item['value']))
-      #we dont assign team_A_dict in this condition, but if its already assigned, take it into consideration
-      print 'result_array count = %d'%result_array.count()
-      exclusion_list = []
-      for game in query_tracker.result_array:
-        if(query_tracker.team_a_dict.has_key(game.pk)):
-          if((not result_array_away.filter(gameid=game.pk).exists()) and query_tracker.team_a_dict[game.pk] == game.away_team or
-             (not result_array_home.filter(gameid=game.pk).exists()) and query_tracker.team_a_dict[game.pk] == game.home_team):
-             print 'adding to exclusion list'
-             exclusion_list.append(game.pk)
-      for gameid in exclusion_list:
-        query_tracker.result_array = query_tracker.result_array.exclude(gameid=gameid) 
-      print 'result_array count = %d'%query_tracker.result_array.count()
-          
-    elif(query_tracker.use_away_team):
-      if(item['comptype'] == '='):
-        query_tracker.result_array = tmp_team_a_list.filter(away_team_record=Decimal(item['value']))
-      elif(item['comptype'] == '<'):
-        query_tracker.result_array = tmp_team_a_list.filter(away_team_record__lt=Decimal(item['value']))
-      elif(item['comptype'] == '>'):
-        query_tracker.result_array = tmp_team_a_list.filter(away_team_record__gt=Decimal(item['value']))
-      for game in query_tracker.result_array:
-        if(not team_a_dict.has_key(game.pk)):
-          query_tracker.team_a_dict[game.pk] = game.away_team
-    else:
-      if(item['comptype'] == '='):
-        query_tracker.result_array = tmp_team_a_list.filter(home_team_record=Decimal(item['value']))
-      elif(item['comptype'] == '<'):
-        query_tracker.result_array = tmp_team_a_list.filter(home_team_record__lt=Decimal(item['value']))
-      elif(item['comptype'] == '>'):
-        query_tracker.result_array = tmp_team_a_list.filter(home_team_record__gt=Decimal(item['value']))
-      for game in query_tracker.result_array:
-        if(not query_tracker.team_a_dict.has_key(game.pk)):
-          query_tracker.team_a_dict[game.pk] = game.home_team
-
-def filter_by_opposition_win_percentage( item ):
-    print "about to compute WinPercentage conditions"
-    tmp_team_b_list = query_tracker.result_array
-    query_tracker.result_array = []
-    query_tracker.team_b_conditions_exist = True
+# Different people will give win percentage in different ways.
+# Some will give .5, others 50, others 500.  Of course there is now
+# only one way to give 1%, which is .01, but noone should care about this.
+def get_record( input ):
+    if ( Decimal( input ) <= Decimal( '1' ) ):
+        return Decimal(input)
+    elif( Decimal( input ) <= Decimal( '100' ) ):
+        return Decimal(input)/100
+    elif( Decimal( input ) <= Decimal( '1000' ) ):
+        return Decimal(input)/1000
+    return Decimal( input )
     
-    print "tmp_team_b_list gathered"
-    if(tmp_team_b_list != []):
-      if(query_tracker.use_away_team and query_tracker.use_home_team):
-        #a note on the team a dict for win%:
-        # as a stand alone feature, the win% only makes sense if both teams are assigned miutually exclusive
-        #constraints.  Like a +500 team versus a minus 500.   So, if home and away are being used
-        # I only assign to the team_a_dict in the team_b constraints
-        if(item['comptype'] == '='):
-          query_tracker.result_array = tmp_team_b_list.filter(Q(away_team_record=Decimal(item['value'])) | Q(home_team_record=Decimal(item['value'])))
-          query_tracker.result_array_away = tmp_team_b_list.filter(away_team_record=Decimal(item['value']))
-          query_tracker.result_array_home = tmp_team_b_list.filter(home_team_record=Decimal(item['value']))
-        elif(item['comptype'] == '<'):
-          query_tracker.result_array = tmp_team_b_list.filter(Q(away_team_record__lt=Decimal(item['value']))|Q(home_team_record__lt=Decimal(item['value'])))
-          query_tracker.result_array_away = tmp_team_b_list.filter(away_team_record__lt=Decimal(item['value']))
-          query_tracker.result_array_home = tmp_team_b_list.filter(home_team_record__lt=Decimal(item['value']))
-        elif(item['comptype'] == '>'):
-          query_tracker.result_array = tmp_team_b_list.filter(Q(away_team_record__gt=Decimal(item['value']))|Q(home_team_record__gt=Decimal(item['value'])))
-          query_tracker.result_array_away = tmp_team_b_list.filter(away_team_record__gt=Decimal(item['value']))
-          query_tracker.result_array_home = tmp_team_b_list.filter(home_team_record__gt=Decimal(item['value']))
-        print 'query_tracker.result_array_team_b count = %d'%query_tracker.result_array.count()
-        #imagine team a is the viking, we want them against teams that have < 500 record.  
-        #make sure to exclude games where only the vikings have < 500 record
-        exclusion_list = []
-        for game in query_tracker.result_array:
-          if(query_tracker.team_a_dict.has_key(game.pk)):
-            if((not query_tracker.result_array_away.filter(gameid=game.pk).exists()) and query_tracker.team_a_dict[game.pk] == game.home_team or
-               (not query_tracker.result_array_home.filter(gameid=game.pk).exists()) and query_tracker.team_a_dict[game.pk] == game.away_team):
-               print 'adding to exclusion list'
-               exclusion_list.append(game.pk)
-          #print 'query_tracker.result_array_team_b count = %d'%query_tracker.result_array.count()
-        for gameid in exclusion_list:
-          query_tracker.result_array = query_tracker.result_array.exclude(gameid=gameid) 
-        #print 'query_tracker.result_array_team_b count = %d'%query_tracker.result_array.count()
-        for game in query_tracker.result_array:
-          if(not query_tracker.team_a_dict.has_key(game.pk)):
-            if(query_tracker.result_array_away.filter(gameid=game.pk).exists()):
-              query_tracker.team_a_dict[game.pk] = game.home_team
-            else:
-              query_tracker.team_a_dict[game.pk] = game.away_team
-            
-      elif(query_tracker.use_away_team):
-        if(item['comptype'] == '='):
-          query_tracker.result_array = tmp_team_b_list.filter(away_team_record=Decimal(item['value']))
-        elif(item['comptype'] == '<'):
-          query_tracker.result_array = tmp_team_b_list.filter(away_team_record__lt=Decimal(item['value']))
-        elif(item['comptype'] == '>'):
-          query_tracker.result_array = tmp_team_b_list.filter(away_team_record__gt=Decimal(item['value']))
-        for game in query_tracker.result_array:
-          if(not query_tracker.team_a_dict.has_key(game.pk)):
-            query_tracker.team_a_dict[game.pk] = game.home_team
-      else:
-        if(item['comptype'] == '='):
-          query_tracker.result_array = tmp_team_b_list.filter(home_team_record=Decimal(item['value']))
-        elif(item['comptype'] == '<'):
-          query_tracker.result_array = tmp_team_b_list.filter(home_team_record__lt=Decimal(item['value']))
-        elif(item['comptype'] == '>'):
-          query_tracker.result_array = tmp_team_b_list.filter(home_team_record__gt=Decimal(item['value']))
-        for game in query_tracker.result_array:
-          if(not query_tracker.team_a_dict.has_key(game.pk)):
-            query_tracker.team_a_dict[game.pk] = game.away_team
-      print "added team_b record conditions" 
 
-def filter_by_win_streak( item ):
-    print "about to compute WinStreak conditions"
-    #if at this point the results array is empty, it means we havent filtered 
-    #by team/conf/spread yet and so we have to  take everything
-    if(len(query_tracker.result_array) == 0 and not query_tracker.team_a_conditions_exist):
-        tmp_team_a_list = GameStreaks.objects.filter(game__in=query_tracker.gameset)
-    else:
-        tmp_team_a_list = GameStreaks.objects.filter(game__in=query_tracker.result_array)
-        query_tracker.result_array = []
-    query_tracker.team_a_conditions_exist = True
-    if(query_tracker.use_away_team and query_tracker.use_home_team):
-        #a note on the team a dict for win%:
-        # as a stand alone feature, the win% only makes sense if both teams are assigned miutually exclusive
-        #constraints.  Like a +500 team versus a minus 500.   So, if home and away are being used
-        # I only assign to the team_a_dict in the team_b constraints
-        if(item['comptype'] == '='):
-            query_tracker.result_array = tmp_team_a_list.filter(Q(away_team_win_streak=item['value']) | Q(home_team_win_streak=item['value']))
-            result_array_away = tmp_team_a_list.filter(away_team_win_streak=item['value'])
-            result_array_home = tmp_team_a_list.filter(home_team_win_streak=item['value'])
-        elif(item['comptype'] == '<'):
-            query_tracker.result_array = tmp_team_a_list.filter(Q(away_team_win_streak__lt=item['value'])|Q(home_team_win_streak__lt=item['value']))
-            result_array_away = tmp_team_a_list.filter(away_team_win_streak__lt=item['value'])
-            result_array_home = tmp_team_a_list.filter(home_team_win_streak__lt=item['value'])
-        elif(item['comptype'] == '>'):
-            query_tracker.result_array = tmp_team_a_list.filter(Q(away_team_win_streak__gt=item['value'])|Q(home_team_win_streak__gt=item['value']))
-            result_array_away = tmp_team_a_list.filter(away_team_win_streak__gt=item['value'])
-            result_array_home = tmp_team_a_list.filter(home_team_win_streak__gt=item['value'])
-        #we dont assign team_A_dict in this condition, but if its already assigned, take it into consideration
-        print 'result_array count = %d'%query_tracker.result_array.count()
-        query_tracker.result_array = Games.objects.filter(gamestreaks__in=result_array)
-        result_array_away = Games.objects.filter(gamestreaks__in=result_array_away)
-        result_array_home = Games.objects.filter(gamestreaks__in=result_array_home)
-        exclusion_list = []
-        for game in query_tracker.result_array:
-            if(query_tracker.team_a_dict.has_key(game.pk)):
-                if((not result_array_away.filter(gameid=game.pk).exists()) and query_tracker.team_a_dict[game.pk] == game.away_team or
-                   (not result_array_home.filter(gameid=game.pk).exists()) and query_tracker.team_a_dict[game.pk] == game.home_team):
-                     print 'adding to exclusion list'
-                     exclusion_list.append(game.pk)
-        for gameid in exclusion_list:
-            query_tracker.result_array = query_tracker.result_array.exclude(gameid=gameid) 
-        print 'result_array count = %d'%query_tracker.result_array.count()
-          
-    elif(query_tracker.use_away_team):
-        if(item['comptype'] == '='):
-            query_tracker.result_array = tmp_team_a_list.filter(away_team_win_streak=item['value'])
-        elif(item['comptype'] == '<'):
-            query_tracker.result_array = tmp_team_a_list.filter(away_team_win_streak__lt=item['value'])
-        elif(item['comptype'] == '>'):
-            query_tracker.result_array = tmp_team_a_list.filter(away_team_win_streak__gt=item['value'])
-        query_tracker.result_array = Games.objects.filter(gamestreaks__in=query_tracker.result_array)
-        for game in query_tracker.result_array:
-            if(not query_tracker.team_a_dict.has_key(game.pk)):
-                query_tracker.team_a_dict[game.pk] = game.away_team
-    else:
-        if(item['comptype'] == '='):
-            query_tracker.result_array = tmp_team_a_list.filter(home_team_win_streak=item['value'])
-        elif(item['comptype'] == '<'):
-            query_tracker.result_array = tmp_team_a_list.filter(home_team_win_streak__lt=item['value'])
-        elif(item['comptype'] == '>'):
-            query_tracker.result_array = tmp_team_a_list.filter(home_team_win_streak__gt=item['value'])
-        query_tracker.result_array = Games.objects.filter(gamestreaks__in=query_tracker.result_array)
-        for game in query_tracker.result_array:
-            if(not query_tracker.team_a_dict.has_key(game.pk)):
-                query_tracker.team_a_dict[game.pk] = game.home_team
 
-def filter_by_opposition_win_streak( item ):
-    print "about to compute WinStreak conditions"
-    if(len(query_tracker.result_array) != 0):
-        tmp_team_b_list = GameStreaks.objects.filter(game__in=query_tracker.result_array)
-        query_tracker.result_array = []
-    else:
-        tmp_team_b_list = []
-    query_tracker.team_b_conditions_exist = True
-    
-    print "tmp_team_b_list gathered"
-    if(tmp_team_b_list != []):
-        if(query_tracker.use_away_team and query_tracker.use_home_team):
-            #a note on the team a dict for win%:
-            # as a stand alone feature, the win% only makes sense if both teams are assigned miutually exclusive
-            #constraints.  Like a +500 team versus a minus 500.   So, if home and away are being used
-            # I only assign to the team_a_dict in the team_b constraints
-            if(item['comptype'] == '='):
-                query_tracker.result_array = tmp_team_b_list.filter(Q(away_team_win_streak=item['value']) | Q(home_team_win_streak=item['value']))
-                query_tracker.result_array_away = tmp_team_b_list.filter(away_team_win_streak=item['value'])
-                query_tracker.result_array_home = tmp_team_b_list.filter(home_team_win_streak=item['value'])
-            elif(item['comptype'] == '<'):
-                query_tracker.result_array = tmp_team_b_list.filter(Q(away_team_win_streak__lt=item['value'])|Q(home_team_win_streak__lt=item['value']))
-                query_tracker.result_array_away = tmp_team_b_list.filter(away_team_win_streak__lt=item['value'])
-                query_tracker.result_array_home = tmp_team_b_list.filter(home_team_win_streak__lt=item['value'])
-            elif(item['comptype'] == '>'):
-                query_tracker.result_array = tmp_team_b_list.filter(Q(away_team_win_streak__gt=item['value'])|Q(home_team_win_streak__gt=item['value']))
-                query_tracker.result_array_away = tmp_team_b_list.filter(away_team_win_streak__gt=item['value'])
-                query_tracker.result_array_home = tmp_team_b_list.filter(home_team_win_streak__gt=item['value'])
-            print 'query_tracker.result_array_team_b count = %d'%query_tracker.result_array.count()
-            #imagine team a is the viking, we want them against teams that have < 500 win_streak.  
-            #make sure to exclude games where only the vikings have < 500 win_streak
-            query_tracker.result_array = Games.objects.filter(gamestreaks__in=query_tracker.result_array)
-            exclusion_list = []
-            for game in query_tracker.result_array:
-                if(query_tracker.team_a_dict.has_key(game.pk)):
-                    if((not query_tracker.result_array_away.filter(gameid=game.pk).exists()) and query_tracker.team_a_dict[game.pk] == game.home_team or
-                       (not query_tracker.result_array_home.filter(gameid=game.pk).exists()) and query_tracker.team_a_dict[game.pk] == game.away_team):
-                         print 'adding to exclusion list'
-                         exclusion_list.append(game.pk)
-            #print 'query_tracker.result_array_team_b count = %d'%query_tracker.result_array.count()
-            for gameid in exclusion_list:
-                query_tracker.result_array = query_tracker.result_array.exclude(gameid=gameid) 
-            #print 'query_tracker.result_array_team_b count = %d'%query_tracker.result_array.count()
-            for game in query_tracker.result_array:
-                if(not query_tracker.team_a_dict.has_key(game.pk)):
-                    if(query_tracker.result_array_away.filter(gameid=game.pk).exists()):
-                        query_tracker.team_a_dict[game.pk] = game.home_team
-                    else:
-                        query_tracker.team_a_dict[game.pk] = game.away_team
-              
-        elif(query_tracker.use_away_team):
-            if(item['comptype'] == '='):
-                query_tracker.result_array = tmp_team_b_list.filter(away_team_win_streak=item['value'])
-            elif(item['comptype'] == '<'):
-                query_tracker.result_array = tmp_team_b_list.filter(away_team_win_streak__lt=item['value'])
-            elif(item['comptype'] == '>'):
-                query_tracker.result_array = tmp_team_b_list.filter(away_team_win_streak__gt=item['value'])
-            query_tracker.result_array = Games.objects.filter(gamestreaks__in=query_tracker.result_array)
-            for game in query_tracker.result_array:
-                if(not query_tracker.team_a_dict.has_key(game.pk)):
-                    query_tracker.team_a_dict[game.pk] = game.home_team
-        else:
-            if(item['comptype'] == '='):
-                query_tracker.result_array = tmp_team_b_list.filter(home_team_win_streak=item['value'])
-            elif(item['comptype'] == '<'):
-                query_tracker.result_array = tmp_team_b_list.filter(home_team_win_streak__lt=item['value'])
-            elif(item['comptype'] == '>'):
-                query_tracker.result_array = tmp_team_b_list.filter(home_team_win_streak__gt=item['value'])
-            query_tracker.result_array = Games.objects.filter(gamestreaks__in=query_tracker.result_array)
-            for game in query_tracker.result_array:
-                if(not query_tracker.team_a_dict.has_key(game.pk)):
-                    query_tracker.team_a_dict[game.pk] = game.away_team
-    print "added team_b win_streak conditions" 
 
-def filter_by_coach( item ):
-    print "about to compute coach conditions"
-    #if at this point the results array is empty, it means either:
-    # a) we havent filtered by team/conf/spread yet and so we have to  take everything
-    # b) we have weeded everything out
-    #if b is true then team_a_conditions_exist is already True
-    if(not query_tracker.team_a_conditions_exist):
-        tmp_team_a_list = query_tracker.gameset
-        query_tracker.result_array = []
-    else:
-        tmp_team_a_list = result_array
-        query_tracker.result_array = []
-    tmp_team_a_list = tmp_team_a_list.distinct()
-    print "tmp_team_a_list gathered"
-    #print "tmp_team_a_list gathered, length = %d"%(tmp_team_a_list.count())
-    query_tracker.team_a_conditions_exist = True
-    coach_name_array = item['value'].split()
-    print 'coach_name_array has length %d'%len(coach_name_array)
-    firstname = coach_name_array[0].lower()
-    if(len(coach_name_array) > 2):
-        lastname = ''
-        for i in range(1,len(coach_name_array)):
-            lastname += coach_name_array[i].lower()
-            if(i != len(coach_name_array) -1):
-                lastname += ' ' 
-    else:
-        lastname = coach_name_array[1].lower()
-    #logic below will have to be adjusted for multiple coachs with the same name
-    print 'gathered coach name, now lets query'
-    if (Coaches.objects.filter(lastname=lastname, firstname=firstname).exists()):
-        print 'coach exists!'
-        coach = Coaches.objects.filter(lastname=lastname, firstname=firstname)[0]
-        print 'coach id = %d'%int(coach.pk)
-        if(query_tracker.use_away_team and not query_tracker.use_home_team):
-            print 'using away'
-            query_tracker.result_array = tmp_team_a_list.filter(away_coach=int(coach.pk)) 
-            for game in query_tracker.result_array:
-                if(not team_a_dict.has_key(game.pk)):
-                    query_tracker.team_a_dict[game.pk]= game.away_team
-        elif(query_tracker.use_home_team and not query_tracker.use_away_team):
-            print 'using home'
-            query_tracker.result_array = tmp_team_a_list.filter(home_coach=int(coach.pk)) 
-            for game in query_tracker.result_array:
-                if(not query_tracker.team_a_dict.has_key(game.pk)):
-                    query_tracker.team_a_dict[game.pk]= game.home_team
-        elif(query_tracker.use_away_team and query_tracker.use_home_team):
-            query_tracker.result_array = tmp_team_a_list.filter(Q(home_coach=int(coach.pk))|Q(away_coach=int(coach.pk))) 
-            print 'using home and away'
-            for game in query_tracker.result_array:
-                if(not query_tracker.team_a_dict.has_key(game.pk)):
-                    if(game.away_coach == coach.pk):
-                        query_tracker.team_a_dict[game.pk]= game.away_team
-                    else:
-                        query_tracker.team_a_dict[game.pk]= game.home_team
-
-def filter_by_opposition_coach( item ):
-    print "about to compute coach conditions"
-    #if at this point the results array is empty, it means either:
-    # a) we havent filtered by team/conf/spread yet and so we have to  take everything
-    # b) we have weeded everything out
-    #if be is true then team_a_conditions_exist is already True
-    if(query_tracker.team_b_conditions_exist):
-        tmp_team_b_list = query_tracker.result_array
-        query_tracker.result_array = []
-    else:
-        query_tracker.result_array = []
-        tmp_team_b_list = query_tracker.result_array
-    tmp_team_b_list = tmp_team_b_list.distinct()
-    print "tmp_team_a_list gathered"
-    query_tracker.team_b_conditions_exist = True
-    coach_name_array = item['value'].split()
-    print 'coach_name_array has length %d'%len(coach_name_array)
-    firstname = coach_name_array[0].lower()
-    if(len(coach_name_array) > 2):
-        lastname = ''
-        for i in range(1,len(coach_name_array)):
-            lastname += coach_name_array[i].lower()
-            if(i != len(coach_name_array) -1):
-                lastname += ' ' 
-    else:
-        lastname = coach_name_array[1].lower()
-    #logic below will have to be adjusted for multiple coachs with the same name
-    if (Coaches.objects.filter(lastname=lastname, firstname=firstname).exists()):
-        print 'coach exists!'
-        coach = Coaches.objects.filter(lastname=lastname, firstname=firstname)[0]
-        if(query_tracker.use_away_team and not query_tracker.use_home_team):
-            query_tracker.result_array = tmp_team_b_list.filter(away_coach=coach.pk) 
-            for game in query_tracker.result_array:
-                if(not team_a_dict.has_key(game.pk)):
-                    query_tracker.team_a_dict[game.pk]= game.home_team
-        elif(not query_tracker.use_away_team and query_tracker.use_home_team):
-            query_tracker.result_array = tmp_team_b_list.filter(home_coach=coach.pk) 
-            for game in query_tracker.result_array:
-                if(not team_a_dict.has_key(game.pk)):
-                    query_tracker.team_a_dict[game.pk]= game.away_team
-        elif(query_tracker.use_away_team and query_tracker.use_home_team):
-            query_tracker.result_array = tmp_team_b_list.filter(Q(home_coach=coach.pk)|Q(away_coach=coach.pk)) 
-            for game in query_tracker.result_array:
-                if(not team_a_dict.has_key(game.pk)):
-                    if(game.away_coach == coach.pk):
-                        query_tracker.team_a_dict[game.pk]= game.home_team
-                    else:
-                        query_tracker.team_a_dict[game.pk]= game.away_team
-
-def get_player_filter( name_str ) :
-    player_name_array = name_str.split()
-    print 'player_name_array has length %d'%len(player_name_array)
-    firstname = player_name_array[0].lower()
-    if(len(player_name_array) > 2):
-      lastname = ''
-      for i in range(1,len(player_name_array)):
-        lastname += player_name_array[i].lower()
-        if(i != len(player_name_array) -1):
-          lastname += ' ' 
-    else:
-      lastname = player_name_array[1].lower()
-    #logic below will have to be adjusted for multiple players with the same name
-    player_filter = Players.objects.filter(lastname=lastname, firstname=firstname)
-    if(not player_filter.exists()):
-      player_filter_nickname = get_nickname(lastname,firstname) 
-      if(player_filter_nickname != None):
-        player_filter = player_filter_nickname
-        lastname=player_filter[0].lastname
-        firstname=player_filter[0].firstname
-    return player_filter
-
-def get_player_game_list( player_filter ):
-    print 'player exists!'
-    if(player_filter.count() == 1):
-      query_tracker.player = player_filter[0]
-      nonunique = False
-    else:
-      query_tracker.player = resolve_nonunique_players(lastname,firstname)
-      nonunique = True
-    position = player.position
-    positionstr = positions[position]
-    query_tracker.queried_players.append(player)
-    query_tracker.player_game_list = query_tracker.player.games.only('gameid').all()
-    print 'player game list gathered size = %d position = %s'%(player_game_list.count(),positions[position])
-
-def get_active_status(game):
-    player_game = game.gameplayers_set.filter(playerid=query_tracker.player)[0]
-    #print 'game contain player position = %s'%positions[position]
-    if(positions[query_tracker.player.position] in ['RB','FB','WR','TE','RBWR']):
-      #print 'player %s %s is not QB'%(player_game.playerid.firstname, player_game.playerid.lastname)
-      if(RbWrGameStats.objects.filter(gameplayer=player_game).exists()):
-        isactive = player_game.rbwrgamestats.G
-      else:
-        isactive = False
-    elif(positions[query_tracker.player.position] == 'QB'):
-      #print 'player %s %s is QB'%(player_game.playerid.firstname, player_game.playerid.lastname)
-      if(QbGameStats.objects.filter(gameplayer=player_game).exists()):
-        isactive = player_game.qbgamestats.G and (player_game.qbgamestats.GS or player_game.gameid.date < datetime.date(1993,1,1))
-      else:
-        isactive = False
-    else:
-      #print 'player %s %s is not QB or rb/wr'%(player_game.playerid.firstname, player_game.playerid.lastname)
-      isactive = True
-    return isactive
-
-def exclude_games( game_list, exclude_list ):
-    if(len(exclusion_list) > 0):
-        count = 0
-        tmp_exclusion_list = []
-        for i in exclusion_list:
-            count = (count + 1)%500
-            tmp_exclusion_list.append(i)
-            if(count == 0):
-                tmp = game_list.exclude(gameid__in=tmp_exclusion_list)
-                tmp_exclusion_list = []
-        game_list = game_list.exclude(gameid__in=tmp_exclusion_list)
-    return game_list
-
-def filter_by_player( item, team ):
-    print "about to compute player conditions"
-    #if at this point the results array is empty, it means either:
-    # a) we havent filtered by team/conf/spread yet and so we have to  take everything
-    # b) we have weeded everything out
-    #if be is true then team_a_conditions_exist is already True
-    if(not query_tracker.team_a_conditions_exist and not query_tracker.team_b_conditions_exist):
-        tmp_result_array = query_tracker.gameset
-    else:
-        tmp_result_array = query_tracker.result_array
-        query_tracker.result_array = []
-    tmp_result_array = tmp_result_array.distinct()
-    print "tmp_result_array gathered"
-    #print "tmp_result_array gathered, length = %d"%(tmp_result_array.count())
-    query_tracker.team_a_conditions_exist = True
-    player_filter = get_player_filter( item['value'] )
-    if (player_filter.exists()):
-        get_player_game_list( player_filter )
-    else:
-        print 'no such player %s %s'%(player_name_array[0], player_name_array[1])
-        query_tracker.player_game_list = []
-        tmp_result_array = []
-    exclusion_list = []
-    ##performance experiment, not required for functionality
-    player_game_pk_list = []
-    for gm in query_tracker.player_game_list:
-        player_game_pk_list.append(gm.pk)
-    tmp_result_array = tmp_result_array.filter(pk__in=player_game_pk_list)
-    ##end of experiment
-    for game in tmp_result_array:
-        #cond 1: player played in game
-        if(query_tracker.player_game_list.filter(pk=game.pk).exists()):
-            isactive = get_active_status(game)
-            if(isactive):
-                #if team_a_dict not assigned it means we have yet to constrain this game.  go ahead and add it to list
-                if(not query_tracker.team_a_dict.has_key(game.pk)):
-                    query_tracker.result_array.append(game)
-                    away = GamePlayers.objects.get(gameid=game.pk, playerid=query_tracker.player.pk).away
-                    if(away and team == 'a' or home and team == 'b' ):
-                        query_tracker.team_a_dict[game.pk]= game.away_team
-                    else:
-                        query_tracker.team_a_dict[game.pk]= game.home_team
-                #otherwise, make sure the team hes on is team a
-                else:
-                    away = GamePlayers.objects.get(gameid=game.pk, playerid=query_tracker.player.pk).away
-                    if(away and team == 'a' or home and team == 'b' ):
-                        team = game.away_team
-                    else:
-                        team = game.home_team
-                    if(query_tracker.team_a_dict[game.pk] == team):
-                        query_tracker.result_array.append(game)
-                        #print 'appending pk array'
-                    else:
-                        exclusion_list.append(game.pk)
-            else:
-                print 'player was not active'
-                exclusion_list.append(game.pk)
-        else:
-            exclusion_list.append(game.pk)
-    #print 'begin player based exclusion tmp_result_array size = %d exclusion_list size = %d'%(tmp_result_array.count(), len(exclusion_list))
-    tmp_result_array = exclude_games( tmp_result_array, exclude_list )
-    query_tracker.result_array = tmp_result_array
-    print 'end player based exclusion tmp_result_array size = %d'%(len(query_tracker.result_array))
            
       
 def main(request={}):
@@ -1372,7 +1514,7 @@ def about(request={}):
 
 def submit(request):
   print ("num team a conditions was %d num team b conditions was %d num game conditions was %d"%(int(get_request_param(request,'num_team_a_conditions', 0)),int(get_request_param(request,'num_team_b_conditions',0)),int(get_request_param(request,'num_game_conditions',0))))
-  response = {}
+  query_tracker = QueryTracker()
   query_tracker.num_team_a_conditions = int(get_request_param(request,'num_team_a_conditions',0))
   query_tracker.num_team_b_conditions = int(get_request_param(request,'num_team_b_conditions',0))
   query_tracker.num_game_conditions = int(get_request_param(request,'num_game_conditions',0))
@@ -1400,12 +1542,13 @@ def submit(request):
   #For the life of me i dont know why, but for certain queries the exclude function will fail if the number of chains is too hi
   #My add hoc solution is to initially split the data set into 4 (based on weeks) and then sum the querySets before we send 
   #them to be analyzed 
-  final_result_array = []
+  query_tracker.final_result_array = []
   final_result_date_array = []
   for i in range(6):
+    ( query_tracker.use_home_team, query_tracker.use_away_team ) = get_home_away_conditions( query_tracker.team_a_conditions, query_tracker.team_b_conditions )
     query_tracker.gameset = query_tracker.games_def.filter(week__in=range(4*i+1,4*i+5))
     if(query_tracker.gameset.exists()):
-      query_tracker.result_array = []
+      query_tracker.result_array = query_tracker.gameset
       query_tracker.team_a_conditions_exist = False
       #TODO: following is redundant (we shouldnt have to do this each iteration)
       #but necessaqry for now since in temab section we reuse the vairables
@@ -1415,67 +1558,68 @@ def submit(request):
       print "check for season conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "season"):
-          filter_by_season( item )
+          query_tracker.filter_by_season( item )
       print "check for week conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == 'week'):
-          filter_by_week( item )
+          query_tracker.filter_by_week( item )
       print "check for fieldtype conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "fieldtype"):
-          filter_by_fieldtype( item )
+          query_tracker.filter_by_fieldtype( item )
       print "check for temperature conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "temperature"):
-          filter_by_temperature( item )
+          query_tracker.filter_by_temperature( item )
       print "check for wind conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "wind"):
-          filter_by_wind( item )
+          query_tracker.filter_by_wind( item )
       print "check for humidity conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "humidity"):
-          filter_by_humidity( item )
+          query_tracker.filter_by_humidity( item )
       print "check for over_under conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "over_under"):
-          filter_by_over_under( item )
+          query_tracker.filter_by_over_under( item )
       
       #beginning of conditions that effect team_a_dict
       print "check for group conditions"
       for item in query_tracker.team_a_conditions:
         print item 
         if(item['type'] == 'group'):
-          filter_by_group( item )
-        elif(item['type'] == 'team'):
-          filter_by_team( item )
+          query_tracker.filter_by_group( item )
+      for item in query_tracker.team_a_conditions:
+        if(item['type'] == 'team'):
+          query_tracker.filter_by_team( item )
 
       #we do spread calculations after we have done all team/group filtering
       print "check for spread conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "favoredBy" or item['type'] == "underdogOf"):
-          filter_by_spread( item )
+          query_tracker.filter_by_spread( item )
     
       print "check for WinPercentage conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "WinPercentage"):
-          filter_by_win_percentage( item )
+          query_tracker.filter_by_win_percentage( item )
       print "check for WinStreak conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "WinStreak"):
-          filter_by_win_streak( item )
+          query_tracker.filter_by_win_streak( item )
 
       print "check for coach conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "coach"):
-          filter_by_coach( item )
+          query_tracker.filter_by_coach( item )
 
       #Ideally  want to do player queries last, as they are most computationally involved
       #and so perf will benefit from smaller data set
       print "check for player conditions"
       for item in query_tracker.team_a_conditions:
         if(item['type'] == "player"):
-          filter_by_player( item, 'a' )
+          query_tracker.filter_by_player( item, 'a' )
     
       #uniquify a before its passed to b 
       #result_array = uniq(result_array)
@@ -1502,29 +1646,29 @@ def submit(request):
       print 'searching for team b group conditions'
       for item in query_tracker.team_b_conditions:
         if(item['type'] == 'group'):
-          filter_by_opposition_group( item )
+          query_tracker.filter_by_opposition_group( item )
       for item in query_tracker.team_b_conditions:
         if(item['type'] == 'team'):
-          filter_by_opposition_team( item )
+          query_tracker.filter_by_opposition_team( item )
       print 'searching for team b win pct conditions'
       for item in query_tracker.team_b_conditions:
         if(item['type'] == "WinPercentage"):
-          filter_by_opposition_win_percentage( item )
+          query_tracker.filter_by_opposition_win_percentage( item )
       print 'searching for team b streak conditions'
       for item in query_tracker.team_b_conditions:
         if(item['type'] == "WinStreak"):
-          filter_by_opposition_win_streak( item )
+          query_tracker.filter_by_opposition_win_streak( item )
       print "check for coach conditions"
       for item in query_tracker.team_b_conditions:
         if(item['type'] == "coach"):
-          filter_by_opposition_coach( item )
+          query_tracker.filter_by_opposition_coach( item )
 
       #Ideally  want to do player queries last, as they are most computationally involved
       #and so perf will benefit from smaller data set
       print 'searching for team b player conditions'
       for item in query_tracker.team_b_conditions:
         if(item['type'] == "player"):
-            filter_by_player( item, 'b' )
+            query_tracker.filter_by_player( item, 'b' )
       print 'done searching for team b conditions'
       #end of parsing team be conditions
       if(not query_tracker.team_b_conditions_exist):
@@ -1534,366 +1678,34 @@ def submit(request):
         query_tracker.result_array = query_tracker.result_array.distinct()
         print "after final uniquification, length of result array is %d"%(query_tracker.result_array.count())
       #end of for loop iteration.  
-      #final_result_array.extend(query_tracker.result_array)    
+      #query_tracker.final_result_array.extend(query_tracker.result_array)    
       for i in query_tracker.result_array:
-        #final_result_array.append(i.pk)
+        #query_tracker.final_result_array.append(i.pk)
         final_result_date_array.append({'pk':i.pk, 'year':i.date.year})
   print 'beginning of post collection calculations'
   #data collected, now calculate winnings/team data
   # aggregate team data: ats %, win %, avg points scored, avg points allowed, avg total
-  response['result_table'] = []
-  response['teama_summary'] = []
-  response['teamb_summary'] = []
-  winnings = 0
-  teama_spreadwins=0
-  teamb_spreadwins=0
-  teama_wins=0
-  teamb_wins=0
-  over_wins=0
-  teama_points = 0
-  teamb_points = 0
-  #eventually make this user defined field
-  push_goes_to_bookie = False
   #put total results back in result array.
   #final_result_date_array.sort(key=lambda gm: gm['year'])
   final_result_date_array = count_sort(final_result_date_array)
   print 'dates sorted'
   for item in final_result_date_array:
-    final_result_array.append(item['pk'])
-  #print 'convert numgames to float, numgames = %d'%(len(final_result_date_array))
-  numgames = float(len(final_result_array))
-  numgamesint = len(final_result_array)
-  query_tracker.queried_players = uniq(query_tracker.queried_players)
-  iteration = 0
-  gameset = Games.objects.only('gameid','date','away_team','home_team','away_team_spread','over_under',
-                               'over_under','away_team_score','home_team_score','week','season')
-  while((1000*iteration) <= numgamesint):
-    #why ordering when we already sorted?
-    #query_tracker.result_array = gameset.filter(pk__in=final_result_array[1000*(iteration):1000*(iteration+1)-1]).order_by('date')
-    query_tracker.result_array = gameset.filter(pk__in=final_result_array[1000*(iteration):1000*(iteration+1)-1])
-    iteration += 1
-    print 'iterate over result array'
-    for item in query_tracker.result_array:
-    #the method below might be necessary for large data sets
-    #for entry in final_result_date_array:
-    #  print 'grab game'
-    #  item = Games.objects.get(pk=entry['pk'])
-      tmp_winnings = 0
-      if(query_tracker.team_a_dict.get(item.pk,-1) == item.away_team):
-        teama_points += item.away_team_score
-        teamb_points += item.home_team_score
-      else:
-        teamb_points += item.away_team_score
-        teama_points += item.home_team_score
-      #calculate spread wins
-      #away team wins
-      if(((item.away_team_score + item.away_team_spread)  - item.home_team_score) > 0): 
-        if(query_tracker.team_a_dict.get(item.pk,-1) == item.away_team):
-          #tmp_winnings = 100 
-          #winnings += 100
-          teama_spreadwins += 1
-        else:
-          #tmp_winnings = -100 
-          #winnings -= 100
-          teamb_spreadwins += 1
-      #home team wins
-      elif(((item.away_team_score + item.away_team_spread)  - item.home_team_score) < 0): 
-        if(query_tracker.team_a_dict.get(item.pk,-1) == item.away_team):
-          #tmp_winnings = -100 
-          #winnings -= 100 
-          teamb_spreadwins += 1
-        else:
-          teama_spreadwins += 1
-          #tmp_winnings = 100 
-          #winnings += 100
-      #draw
-      elif(push_goes_to_bookie):
-        pass
-        #tmp_winnings = -100 
-        #winnings -= 100 
-      #print 'calculating win %'
-      #calculate regular wins
-      if((item.away_team_score  - item.home_team_score) > 0): 
-        if(query_tracker.team_a_dict.get(item.pk,-1) == item.away_team):
-          teama_wins += 1
-        else:
-          teamb_wins += 1
-      #home team wins
-      elif((item.away_team_score  - item.home_team_score) < 0): 
-        if(query_tracker.team_a_dict.get(item.pk,-1) == item.away_team):
-          teamb_wins += 1
-        else:
-          teama_wins += 1
-      #print 'calculating over cover %'
-      #the over covers
-      if((item.away_team_score  + item.home_team_score) > item.over_under): 
-        over_wins +=1
-  
-      #print('%s        %d     %s        %d    %.1f          %s    %d'%(teams[item.away_team], item.away_team_score, teams[item.home_team], item.home_team_score,item.away_team_spread, teams[team_a_dict[item.pk]], tmp_winnings))
-      #print 'put data in rsp array'
-      response['result_table'] += [item.season,item.week,item.away_team, item.away_team_score, item.home_team, item.home_team_score,str(item.away_team_spread),str(item.over_under), query_tracker.team_a_dict.get(item.pk,-1)]
-  #aggregate datae/summaries
-  print 'calculating summaries, numgames = %d'%numgames
-  #preventdiv by 0, notings gonna getprinted anyway
-  if(numgames == 0):
-    numgames = 1
-  response['teama_summary'] = ['%.2f'%(float(teama_spreadwins)/numgames), '%.2f'%(float(teama_wins)/numgames), '%.2f'%(over_wins/numgames), '%.2f'%(teama_points/numgames), '%.2f'%(teamb_points/numgames)]
-  response['teamb_summary'] = ['%.2f'%(float(teamb_spreadwins)/numgames), '%.2f'%(float(teamb_wins)/numgames), '%.2f'%(over_wins/numgames), '%.2f'%(teamb_points/numgames), '%.2f'%(teama_points/numgames)]
-  response['winnings'] = winnings
-  #plotdata = { 'teste00' : [response['teama_summary'][0]], 'teste01' : [response['teama_summary'][1]], 'teste02' : [response['teama_summary'][2]]}
-  print 'about to do summary hist'
-  int_ats = int(100*float(teama_spreadwins)/numgames) 
-  int_wp = int(100*float(teama_wins)/numgames) 
-  int_ou = int(100*float(over_wins)/numgames)  
-  #plotdata = { 'ATS' : [int_ats], 'Win%' : [int_wp], 'Over Covers' : [int_ou]}
-  plotdata = [int_ats,int_wp,int_ou]
-  color_array = get_color_array([int_ats,int_wp,int_ou])
-  print 'color array:'
-  print color_array
-  timestamp = str(time.time())
-  response['teamsumchart'] = 'teamsum_'+timestamp+'.png'
-  #teamsumchart_fullpath = settings.MY_PROJECT_ROOT+'templates/source/teamsum_'+timestamp+'.svg'
-  teamsumchart_fullpath = settings.STATIC_ROOT+'teamsum_'+timestamp+'.png'
-  print 'about to use cairoplot'
-  if(plotting):
-    cairoplot.vertical_bar_plot (  teamsumchart_fullpath, plotdata, 550, 400, border = 50, grid = True, rounded_corners = True,display_values = True, x_labels=['ATS', 'Win%', 'Over Covers'], colors=color_array)
+    query_tracker.final_result_array.append(item['pk'])
 
+  query_tracker.get_game_data()
+  query_tracker.get_summary_hist()
   #gather player data
-  print 'collecting player stats'
-  response['player_table'] = []
-  response['players_with_stats'] = []
-  response['qbs_with_stats'] = []
-  response['defs_with_stats'] = []
-  response['rbwrs_with_stats'] = []
-  response['qb_avgs'] = []
-  response['def_avgs'] = []
-  response['rbwr_avgs'] = []
-  response['qb_charts'] = []
-  response['playerdata_charts'] = []
-  response['rbwr_charts'] = []
-  response['def_charts'] = []
-  player_sums = []
-  #A NOTE ON THE FOLLOWING:  We broke down the result array above for large game sets (> 1000)
-  #no player gameset will be greater than a few hundred, so its not needed here, so we go back to 
-  #full result array
-  query_tracker.result_array = Games.objects.filter(pk__in=final_result_array).only('date','gameid')
-  for playa in query_tracker.queried_players:
-    print 'collecting stats for playa %s %s'%(playa.firstname,playa.lastname)
-    #determine if this player has stats, currently only offensive position players
-    positionstr = positions[playa.position] 
-    if(positionstr in ['RB','FB','WR','TE','QB','RBWR'] or
-       positionstr in ['CB','DB','DE','DL', 'DT','FS', 'ILB', 'LB', 'LS', 'MLB', 'NT', 'OLB', 'SAF','SS','DEF']):
-      rush_array = []
-      pass_array = []
-      totalyds_array = []
-      date_array = []
-      #print 'about to gather playa stats for each game num results is %d'%(query_tracker.result_array.count())
-      print 'about to gather playa stats for each game' 
-      firstgame = True
-      player_has_stats = False
-      #old, generated from __in
-      for item in query_tracker.result_array:
-        #on the first game for ech player determine if we have any stats for them
-        if(firstgame):
-          print 'firstgame'
-          player_sums = []
-          firstgame = False
-          #this is just a tes.  Is server side json un able to handle the mixed array sizes?
-          response['player_table'].extend(['hdr', playa.lastname, playa.firstname,playa.position])
-          #print 'first game is gameid %d playerid %d'%(item.pk, playa.pk)
-          #gp = GamePlayers.objects.filter(gameid=item.pk, playerid=playa.pk)[0]
-          player_game_list = GamePlayers.objects.filter(playerid=playa.pk)
-          #player_game_list = GamePlayers.objects.filter(playerid=playa.pk).filter(gameid__in=query_tracker.result_array)
-          print 'grab numstats'
-          #seems __in is a big perf loss, just set numstats to Tru for now
-          numstats = True
-          """
-          if(positionstr in ['RB','FB','WR','TE','RBWR']):
-            #numstats = RbWrGameStats.objects.filter(gameplayer_id = gp.pk).count()
-            gpstatarray = RbWrGameStats.objects.filter(gameplayer__in=player_game_list).defer('FUM','Lost','RushAtt','RecLng','RecTD')
-            numstats = gpstatarray.exists()
-          elif(positionstr == 'QB'):
-            #numstats = QbGameStats.objects.filter(gameplayer_id = gp.pk).count()
-            #gpstatarray = QbGameStats.objects.filter(gameplayer__in=player_game_list).defer('Pct','Avg','Int','Sck','SckY','RushAtt','RushAvg','RushTD','FUM','Lost')
-            #numstats = gpstatarray.exists()
-          elif(positionstr in ['CB','DB','DE','DL', 'DT','FS', 'ILB', 'LB', 'LS', 'MLB', 'NT', 'OLB', 'SAF','SS','DEF']):
-            #numstats = DefGameStats.objects.filter(gameplayer_id = gp.pk).count()
-            gpstatarray = DefGameStats.objects.filter(gameplayer__in=player_game_list)
-            numstats = gpstatarray.exists() 
-          else:
-            numstats = False
-          """
-          if(numstats):
-            print 'playr has stats'
-            player_has_stats = True
-            games_active = 0
-            #first filter fr playerid
-            if(positionstr in ['RB','FB','WR','TE','RBWR']):
-              print 'initialize player sums'
-              player_sums = [0,0,0,0,0,0]
-              response['rbwrs_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
-              response['players_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
-              #gpstatarray = RbWrGameStats.objects.filter(gameplayer__in=player_game_list).defer('FUM','Lost','RushAtt','RecLng','RecTD')
-            elif(positionstr == 'QB'):
-              player_sums = [0,0,0,0,0]
-              response['qbs_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
-              response['players_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
-              #gpstatarray = QbGameStats.objects.filter(gameplayer__in=player_game_list).defer('Pct','Avg','Int','Sck','SckY','RushAtt','RushYds','RushAvg','RushTD','FUM','Lost')
-            elif(positionstr in ['CB','DB','DE','DL', 'DT','FS', 'ILB', 'LB', 'LS', 'MLB', 'NT', 'OLB', 'SAF','SS','DEF']):
-              print 'player is on def'
-              player_sums = [0,0,0]
-              response['defs_with_stats'].append('%s %s'%(playa.firstname,playa.lastname))
-              #gpstatarray = DefGameStats.objects.filter(gameplayer__in=player_game_list)
-        if(player_has_stats): 
-          #print 'grab gp object'
-          gp = player_game_list.get(gameid=item.pk)
-          if(positionstr in ['RB','FB','WR','TE','RBWR']):
-            #print 'grab wr/rb stats'
-            #gpstatsarray = RbWrGameStats.objects.filter(gameplayer_id = gp.pk)
-            #try removing gpstatarray.  its generated by __in which is costly
-            #if(gpstatarray.filter(gameplayer_id = gp.pk).exists()):
-            #  gpstats = gpstatarray.filter(gameplayer_id = gp.pk)[0]
-            if(RbWrGameStats.objects.filter(gameplayer_id = gp.pk).exists()):
-              gpstats = RbWrGameStats.objects.filter(gameplayer_id = gp.pk)[0]
-            #print 'RbWrstat retrieved'
-            response['player_table'].extend([str(gpstats.RushYds),str(gpstats.RushTD), str(gpstats.RecYds),str(gpstats.RecTD)])
-            #we sum up the stats for each game in the avg array.  at the end we will divide byt total number of games
-            statnum = 0
-            #only add stat if the player was actuve (G=True means active.  For QBs we may later want to do GS (started)
-            if(gpstats.G):
-              #print 'player is active'
-              games_active += 1
-              for stat in [gpstats.RushYds,gpstats.RushAvg,gpstats.RushTD, gpstats.RecYds,gpstats.RecAvg,gpstats.RecTD]:
-                player_sums[statnum] += stat
-                statnum += 1
-              rush_array.append(gpstats.RushYds)
-              pass_array.append(gpstats.RecYds)
-              totalyds_array.append(gpstats.RecYds+gpstats.RushYds)
-              date_array.append(str(item.date))
-              #print 'stats collected for this game'
-          elif(positionstr == 'QB'):
-            #gpstatsarray = QbGameStats.objects.filter(gameplayer_id = gp.pk)
-            if(QbGameStats.objects.filter(gameplayer_id = gp.pk).exists()):
-              gpstats = QbGameStats.objects.filter(gameplayer_id = gp.pk)[0]
-            #print 'Qbstat retrieved'
-            response['player_table'].extend([str(gpstats.Comp), str(gpstats.Att), str(gpstats.Yds),str(gpstats.TD),str(gpstats.Rate)])
-              #we sum up the stats for each game in the avg array.  at the end we will divide byt total number of games
-            statnum = 0
-            #For QBs only add stat if the player started (GS=True means started) 
-            if(gpstats.GS):
-              games_active += 1
-              for stat in [gpstats.Comp, gpstats.Att, gpstats.Yds,gpstats.TD,gpstats.Rate]:
-                player_sums[statnum] += stat
-                statnum += 1
-              rush_array.append(gpstats.RushYds)
-              pass_array.append(gpstats.Yds)
-              total_yds = gpstats.Yds+gpstats.RushYds
-              totalyds_array.append(total_yds)
-              date_array.append(str(item.date))
-            #print 'stats added to response games_active = %d'%games_active
-          elif(positionstr in ['CB','DB','DE','DL', 'DT','FS', 'ILB', 'LB', 'LS', 'MLB', 'NT', 'OLB', 'SAF','SS','DEF']):
-            #gpstatsarray = DefGameStats.objects.filter(gameplayer_id = gp.pk)
-            print 'collect def stats'
-            if(DefGameStats.objects.filter(gameplayer_id = gp.pk).exists()):
-              gpstats = DefGameStats.objects.filter(gameplayer_id = gp.pk)[0]
-            print 'collected def stats'
-            #print 'Defstat retrieved'
-            response['player_table'].extend([str(gpstats.Tck), str(gpstats.Sck), str(gpstats.Int)])
-            #we sum up the stats for each game in the avg array.  at the end we will divide byt total number of games
-            statnum = 0
-            #For Def only add stat if the player started (GS=True means started) 
-            #might change this later
-            if(gpstats.GS):
-              print 'player active'
-              games_active += 1
-              for stat in [gpstats.Tck, gpstats.Sck, gpstats.Int]:
-                player_sums[statnum] += stat
-                statnum += 1
-                #this is where we would add to any histogram forming array
-                #pass_array.append(gpstats.Yds)
-      ##we are done with a particular player, calculate the stat avgs based on sums 
-      player_avgs = []
-      print 'calculating avgs'
-      for stat in player_sums:
-        ##for now ill print 0 if 0 games active, maybe later ill change this
-        if(games_active != 0):
-          player_avgs.append('%.1f'%(stat/games_active))
-        else:
-          player_avgs.append(0)
-      if(positions[playa.position] == 'QB'):
-        response['qb_avgs'].append(player_avgs) 
-      elif(positions[playa.position] in ['WR','RB','FB','TE','RBWR']):
-        response['rbwr_avgs'].append(player_avgs) 
-      else:
-        response['def_avgs'].append(player_avgs) 
+  query_tracker.get_player_data()
 
-      if(pass_array != []):
-        """
-        ##the following is bad for performance and not that useful
-        ##create linear plot of total yds
-          if(plotting):
-            timestamp = str(time.time())
-            lineplot_fullpath = settings.STATIC_ROOT+'totalydsline_'+timestamp+'.png'
-            print 'create line plot'
-            cairoplot.dot_line_plot( lineplot_fullpath, totalyds_array, 550, 400, x_labels = date_array,
-                               axis = True, grid = True, series_legend = True )
-            response['playerdata_charts'].append('totalydsline_'+timestamp+'.png')
-        """
-        ##now create histograms
-        #total yds
-        totalyds_hist = get_hist(totalyds_array)
-        timestamp = str(time.time())
-        if(positions[playa.position] == 'QB'):
-          response['qb_charts'].append('totalydshist_'+timestamp+'.png')
-        else:
-          response['rbwr_charts'].append('totalydshist_'+timestamp+'.png')
-        #histchart_fullpath = settings.MY_PROJECT_ROOT+'templates/source/passhist_'+timestamp+'.svg'
-        histchart_fullpath = settings.STATIC_ROOT+'totalydshist_'+timestamp+'.png'
-        print 'creating passhist'
-        if(plotting):
-          cairoplot.vertical_bar_plot (  histchart_fullpath, totalyds_hist[1], 550, 400, border = 50, grid = True, rounded_corners = True,display_values = True,x_labels=totalyds_hist[0])
-        print 'totalydshist created'
-      """
-      gonna do just aggregate hist for now
-      #rec
-      if(pass_array != []):
-        pass_hist = get_hist(pass_array)
-        timestamp = str(time.time())
-        if(positions[playa.position] == 'QB'):
-          response['qb_charts'].append('passhist_'+timestamp+'.png')
-        else:
-          response['rbwr_charts'].append('passhist_'+timestamp+'.png')
-        #histchart_fullpath = settings.MY_PROJECT_ROOT+'templates/source/passhist_'+timestamp+'.svg'
-        histchart_fullpath = settings.STATIC_ROOT+'passhist_'+timestamp+'.png'
-        print 'creating passhist'
-        if(plotting):
-          cairoplot.vertical_bar_plot (  histchart_fullpath, pass_hist[1], 550, 400, border = 50, grid = True, rounded_corners = True,display_values = True,x_labels=pass_hist[0])
-        print 'passhist created'
-      #rush
-      if(rush_array != []):
-        rush_hist = get_hist(rush_array)
-        timestamp = str(time.time())
-        if(positions[playa.position] == 'QB'):
-          response['qb_charts'].append('rushhist_'+timestamp+'.png')
-        else:
-          response['rbwr_charts'].append('rushhist_'+timestamp+'.png')
-        #histchart_fullpath = settings.MY_PROJECT_ROOT+'templates/source/rushhist_'+timestamp+'.svg'
-        histchart_fullpath = settings.STATIC_ROOT+'rushhist_'+timestamp+'.png'
-        if(plotting):
-          cairoplot.vertical_bar_plot (  histchart_fullpath, rush_hist[1], 550, 400, border = 50, grid = True, rounded_corners = True,display_values = True, x_labels = rush_hist[0])
-      """  
-  print 'player stats collected'
-  #for line in response['player_table']:
-  #  print line
-  if(len(final_result_array) > 0):
-    response['results_exist'] = 1
+  if(len(query_tracker.final_result_array) > 0):
+    query_tracker.response['results_exist'] = 1
   else:
-    response['results_exist'] = 0
+    query_tracker.response['results_exist'] = 0
 
-  #response['player_table'] = []
-  #print response['player_table']
+  #query_tracker.response['player_table'] = []
+  #print query_tracker.response['player_table']
   print 'about to converrt to json'
-  json_str = json.dumps(response)
+  json_str = json.dumps(query_tracker.response)
   #print 'json_str:'
   #print json_str
   print 'converted  to json Boy!'
