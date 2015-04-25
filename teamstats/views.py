@@ -216,6 +216,7 @@ comp_types=[
 "<"
 ]
 
+
 class QueryTracker:
     def __init__( self ):
         self.gameset = []
@@ -261,6 +262,36 @@ class QueryTracker:
         self.response['playerdata_charts'] = []
         self.response['rbwr_charts'] = []
         self.response['def_charts'] = []
+
+        self.filter_dict = {
+            'season' : self.filter_by_season,
+            'week' : self.filter_by_week,
+            'fieldtype' : self.filter_by_fieldtype,
+            'temperature' : self.filter_by_temperature,
+            'wind' : self.filter_by_wind,
+            'humidity' : self.filter_by_humidity,
+            'over_under' : self.filter_by_over_under,
+            'group' : self.filter_by_group,
+            'team' : self.filter_by_team,
+            'underdogOf' : self.filter_by_spread,
+            'favoredBy' : self.filter_by_spread,
+            'WinPercentage' : self.filter_by_win_percentage,
+            'WinStreak' : self.filter_by_win_streak,
+            'coach' : self.filter_by_coach,
+            'player' : self.filter_by_player,
+            'opposition_group' : self.filter_by_opposition_group,
+            'opposition_team' : self.filter_by_opposition_team,
+            'opposition_WinPercentage' : self.filter_by_opposition_win_percentage,
+            'opposition_WinStreak' : self.filter_by_opposition_win_streak,
+            'opposition_coach' : self.filter_by_opposition_coach,
+        }
+      
+
+    def query_wrapper( self, list, item_type, **kwargs ):
+        print( "check for %s conditions" % item_type )
+        for entry in list:
+            if( entry['type'] in [ item_type, item_type.replace('opposition_', '') ] ):
+                self.filter_dict[item_type]( entry, **kwargs )
 
     def init_team_a_dict( self ):
         #Lets first see if team a is restricted to home or away
@@ -309,6 +340,7 @@ class QueryTracker:
         print "request params gathered, team a conditions are:"
         for item in self.team_a_conditions:
             print item 
+
     def filter_by_season( self, item ):
         print "about to compute season conditions"
         self.team_a_conditions_exist = True
@@ -1526,83 +1558,38 @@ def submit(request):
     if(query_tracker.gameset.exists()):
       query_tracker.result_array = query_tracker.gameset
       query_tracker.team_a_conditions_exist = False
-      #TODO: following is redundant (we shouldnt have to do this each iteration)
-      #but necessaqry for now since in temab section we reuse the vairables
-      #the following lists the "team_a" teams.  
-      #It will be used later in team b logic
+      #the following lists the "team_a" teams.  It will be used later in team b logic
       query_tracker.team_a_list = []
-      print "check for season conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "season"):
-          query_tracker.filter_by_season( item )
-      print "check for week conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == 'week'):
-          query_tracker.filter_by_week( item )
-      print "check for fieldtype conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "fieldtype"):
-          query_tracker.filter_by_fieldtype( item )
-      print "check for temperature conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "temperature"):
-          query_tracker.filter_by_temperature( item )
-      print "check for wind conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "wind"):
-          query_tracker.filter_by_wind( item )
-      print "check for humidity conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "humidity"):
-          query_tracker.filter_by_humidity( item )
-      print "check for over_under conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "over_under"):
-          query_tracker.filter_by_over_under( item )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "season" )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "week" )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "fieldtype" )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "temperature" )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "wind" )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "humidity" )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "over_under" )
       
       #beginning of conditions that effect team_a_dict
-      print "check for group conditions"
-      for item in query_tracker.team_a_conditions:
-        print item 
-        if(item['type'] == 'group'):
-          query_tracker.filter_by_group( item )
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == 'team'):
-          query_tracker.filter_by_team( item )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "group" )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "team" )
 
       #we do spread calculations after we have done all team/group filtering
-      print "check for spread conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "favoredBy" or item['type'] == "underdogOf"):
-          query_tracker.filter_by_spread( item )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "favoredBy" )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "underdogOf" )
     
-      print "check for WinPercentage conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "WinPercentage"):
-          query_tracker.filter_by_win_percentage( item )
-      print "check for WinStreak conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "WinStreak"):
-          query_tracker.filter_by_win_streak( item )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "WinPercentage" )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "WinStrak" )
 
-      print "check for coach conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "coach"):
-          query_tracker.filter_by_coach( item )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "coach" )
 
       #Ideally  want to do player queries last, as they are most computationally involved
       #and so perf will benefit from smaller data set
-      print "check for player conditions"
-      for item in query_tracker.team_a_conditions:
-        if(item['type'] == "player"):
-          query_tracker.filter_by_player( item, 'a' )
+      query_tracker.query_wrapper( query_tracker.team_a_conditions, "player", team="a" )
     
       #uniquify a before its passed to b 
       #result_array = uniq(result_array)
       if(query_tracker.result_array != []):
-        query_tracker.result_array = query_tracker.result_array.distinct()
-        print "uniquified team a query_tracker.results, num query_tracker.results = %d"%query_tracker.result_array.count() 
-        #print "current length is %d"%result_array.count()
+          query_tracker.result_array = query_tracker.result_array.distinct()
+          print "uniquified team a query_tracker.results, num query_tracker.results = %d"%query_tracker.result_array.count() 
 
       #two things can lead to a 0 lngth array at this point:
       # one is no conditions yet.  The other is we already have no matches
@@ -1617,47 +1604,33 @@ def submit(request):
       #Lets first see if team b is restricted to home or away
       query_tracker.team_b_conditions_exist = False
       ( query_tracker.use_home_team, query_tracker.use_away_team ) = get_home_away_conditions( query_tracker.team_b_conditions, query_tracker.team_a_conditions )
+
       #Now that we've done that we can query based on other conditions
       #remember that this time we are querying team a results
       print 'searching for team b group conditions'
-      for item in query_tracker.team_b_conditions:
-        if(item['type'] == 'group'):
-          query_tracker.filter_by_opposition_group( item )
-      for item in query_tracker.team_b_conditions:
-        if(item['type'] == 'team'):
-          query_tracker.filter_by_opposition_team( item )
-      print 'searching for team b win pct conditions'
-      for item in query_tracker.team_b_conditions:
-        if(item['type'] == "WinPercentage"):
-          query_tracker.filter_by_opposition_win_percentage( item )
-      print 'searching for team b streak conditions'
-      for item in query_tracker.team_b_conditions:
-        if(item['type'] == "WinStreak"):
-          query_tracker.filter_by_opposition_win_streak( item )
-      print "check for coach conditions"
-      for item in query_tracker.team_b_conditions:
-        if(item['type'] == "coach"):
-          query_tracker.filter_by_opposition_coach( item )
+      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_group" )
+      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_team" )
+      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_WinPercentage" )
+      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_WinStrak" )
+      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_coach" )
 
-      #Ideally  want to do player queries last, as they are most computationally involved
-      #and so perf will benefit from smaller data set
-      print 'searching for team b player conditions'
-      for item in query_tracker.team_b_conditions:
-        if(item['type'] == "player"):
-            query_tracker.filter_by_player( item, 'b' )
+      #Ideally  want to do player queries last, as they are most computationally involved and so perf will benefit from smaller data set
+      query_tracker.query_wrapper( query_tracker.team_b_conditions, "player", team="b" )
       print 'done searching for team b conditions'
+
       #end of parsing team be conditions
       if(not query_tracker.team_b_conditions_exist):
-        print "no team b conditions!"
+          print "no team b conditions!"
       elif(query_tracker.result_array != []):
-        print 'begin final uniquification'
-        query_tracker.result_array = query_tracker.result_array.distinct()
-        print "after final uniquification, length of result array is %d"%(query_tracker.result_array.count())
+          print 'begin final uniquification'
+          query_tracker.result_array = query_tracker.result_array.distinct()
+          print "after final uniquification, length of result array is %d"%(query_tracker.result_array.count())
       #end of for loop iteration.  
       #query_tracker.final_result_array.extend(query_tracker.result_array)    
       for i in query_tracker.result_array:
-        #query_tracker.final_result_array.append(i.pk)
-        final_result_date_array.append({'pk':i.pk, 'year':i.date.year})
+          #query_tracker.final_result_array.append(i.pk)
+          final_result_date_array.append({'pk':i.pk, 'year':i.date.year})
+
   print 'beginning of post collection calculations'
   #data collected, now calculate winnings/team data
   # aggregate team data: ats %, win %, avg points scored, avg points allowed, avg total
@@ -1666,7 +1639,7 @@ def submit(request):
   final_result_date_array = count_sort(final_result_date_array)
   print 'dates sorted'
   for item in final_result_date_array:
-    query_tracker.final_result_array.append(item['pk'])
+      query_tracker.final_result_array.append(item['pk'])
 
   query_tracker.get_game_data()
   query_tracker.get_summary_hist()
@@ -1674,9 +1647,9 @@ def submit(request):
   query_tracker.get_player_data()
 
   if(len(query_tracker.final_result_array) > 0):
-    query_tracker.response['results_exist'] = 1
+      query_tracker.response['results_exist'] = 1
   else:
-    query_tracker.response['results_exist'] = 0
+      query_tracker.response['results_exist'] = 0
 
   #query_tracker.response['player_table'] = []
   #print query_tracker.response['player_table']
@@ -1686,8 +1659,8 @@ def submit(request):
   #print json_str
   print 'converted  to json Boy!'
   if ( sys.version_info > (2, 7) ):
-    return HttpResponse(json_str, content_type='application/json')
+      return HttpResponse(json_str, content_type='application/json')
   else:
-    return HttpResponse(json_str, mimetype='application/json')
+      return HttpResponse(json_str, mimetype='application/json')
 
 
