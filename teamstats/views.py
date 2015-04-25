@@ -443,7 +443,7 @@ class QueryTracker:
                 self.team_a_dict[game.pk] = game.home_team
         elif(self.use_home_team and self.use_away_team): 
             self.result_array =  self.result_array.filter(Q(home_team__in=team_a_index_list)|Q(away_team__in=team_a_index_list))
-            for game in result_array:
+            for game in self.result_array:
                 if(game.home_team in team_a_index_list): 
                     self.team_a_dict[game.pk] = game.home_team
                 else:
