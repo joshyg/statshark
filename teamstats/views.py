@@ -1044,9 +1044,8 @@ class QueryTracker:
                         team_a_away = False
                         if(not self.team_a_dict.has_key(game.pk)):
                             self.team_a_dict[game.pk] = game.home_team
-                    if(          team_a_away  and not ( self.use_away_team and team == 'a' or self.use_home_team and team == 'b' ) ):
-                        exclusion_list.append(game.pk)
-                    elif( ( not team_a_away ) and not ( self.use_home_team and team == 'a' or self.use_away_team and team == 'b' ) ):
+                    if( (      team_a_away  and self.team_a_dict[game.pk] != game.away_team ) or
+                        (  not team_a_away  and self.team_a_dict[game.pk] == game.away_team ) ):
                         exclusion_list.append(game.pk)
                 else:
                     print 'player was not active'
