@@ -49,7 +49,7 @@ _argDict['minweek'] =1
 _argDict['maxyear'] =2014
 _argDict['maxweek'] =21
 _argDict['debug'] = False
-_argDict['seasonMode'] = 'postseason' # certain links follow a different format for regular/postseason
+_argDict['seasonMode'] = 'regularseason' # certain links follow a different format for regular/postseason
 _argDict['playerMode'] = 'current' # hitoric player data is found on different pages than current player data.
 _argDict['overwrite'] = False # Sometimes we want to overwrite everything, other times we dont :)
 _argDict['updateGames'] = False
@@ -495,7 +495,7 @@ def getGameExtras(gameid, season, week, home, away):
     
     # Note: for whatever reason, profootball reference begins its postseason week numbers at 31
     # so WildCard = 31, division = 32, etc
-    postSeasonWeekMappings = { 18 : 31, 19 : 32, 20 : 33, 22 : 34 }
+    postSeasonWeekMappings = { 18 : 31, 19 : 32, 20 : 33, 21 : 34, 22 : 34 }
     for line_byte in schedule.readlines():
         line = str( line_byte )
         if ( not in_row ):
@@ -535,8 +535,10 @@ def getGameExtras(gameid, season, week, home, away):
                     else:
                         tmp_home_team = losing_team
                         tmp_away_team = winning_team
-                    if ( tmp_home_team.find(home) >= 0 and tmp_away_team.find(away) >= 0  and
-                         ( ( week <= 17 and week == tmp_week ) or ( week > 17 and postSeasonWeekMappings[week] == tmp_week ) ) ):
+                    print ( 'home = %s away = %s week = %d tmp_week = %d'%( home, away, week, tmp_week ) )
+                    if ( tmp_home_team.find(home) >= 0 and tmp_away_team.find(away) >= 0  and ( week <= 17 and week == tmp_week ) or
+                         ( week > 17 and postSeasonWeekMappings[week] == tmp_week and 
+                         ( tmp_home_team.find(home) > 0 or tmp_away_team.find(home) > 0 ) and ( tmp_home_team.find(away) > 0 or tmp_away_team.find(away) > 0 ) ) ):
                         box_score_found = True
                         break
     if ( box_score_found ):
@@ -1186,7 +1188,11 @@ def getStatsFromGamelogs():
                     ):
                   print( 'Season Sect begins!' )
                   reg_season = True
-                elif(reg_season and re.search('@$', line)): 
+                # The re below is replaced because, when we went from urllib2
+                # to the newer urllib, we now convert from byte to str
+                # and so the re no longer is satisfied
+                #elif(reg_season and re.search('@$', line)): 
+                elif(reg_season and line.find(r'\t@\r\n') > 0 ): 
                     awayTeam = True
                 elif(reg_season and line.count('gamecenter') > 0): 
                   intable = True
@@ -1217,6 +1223,10 @@ def getStatsFromGamelogs():
                               continue
                           else:
                               gamePlayerInst = gamePlayerQuery[0]
+                              # if overwrite is true, then we may be updating the away field, which has been wrong in the past.
+                              gamePlayerInst.away = awayTeam
+                              gamePlayerInst.save()
+                              awayTeam = False
                               if ( gameStatQuery.count() > 0 ):
                                   gameStatInst = gameStatQuery[0]
                               elif ( hasStats ):
@@ -1229,7 +1239,7 @@ def getStatsFromGamelogs():
                           gamePlayerInst.playerid = playerInst[0]
                           gamePlayerInst.away = awayTeam
                           gamePlayerInst.save()
-                          print( "adding Game %d player %s to db"%( gameid, player['fullname'] ) )
+                          print( "adding Game %d player %s to db away = %d"%( gameid, player['fullname'], awayTeam ) )
                           gameStatInst = gameStatClass()
                           gameStatInst.gameplayer = gamePlayerInst
                           awayTeam = False
