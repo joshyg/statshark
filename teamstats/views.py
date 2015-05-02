@@ -537,51 +537,52 @@ class QueryTracker:
         print "done filtering team b by team, length of result array is %d"%(self.result_array.count())
     
     def filter_by_spread( self, item ):
-        print "about to compute spread conditions"
+        print "about to compute spread conditions."
         tmp_team_a_list = self.result_array.filter(away_team_spread__gt=-100)
         self.team_a_conditions_exist = True
+        threshold = Decimal(item['value'])
         #print "tmp_team_a_list gathered, length = %d"%len(tmp_team_a_list)
         if(self.use_away_team and self.use_home_team):
             print 'using home and away'
             #gather games that might satisfy our results if the satisfying teams are in our dict
             if(item['comptype'] == '='):
-                tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread=Decimal(item['value'])) | Q(away_team_spread=-1*Decimal(item['value'])))
+                tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread=threshold) | Q(away_team_spread=-1*threshold))
             elif(item['comptype'] == '<'):
-                tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread__lt=Decimal(item['value']))|Q(away_team_spread__gt=-1*Decimal(item['value'])))
+                tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread__lt=threshold)|Q(away_team_spread__gt=-1*threshold))
             elif(item['comptype'] == '>'):
-                tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread__gt=Decimal(item['value']))|Q(away_team_spread__lt=-1*Decimal(item['value'])))
+                tmp_result_array = tmp_team_a_list.filter(Q(away_team_spread__gt=threshold)|Q(away_team_spread__lt=-1*threshold))
         elif(self.use_away_team):
             print 'using just away'
             if(item['comptype'] == '='):
-                tmp_result_array = tmp_team_a_list.filter(away_team_spread=Decimal(item['value']))
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread=threshold)
             elif(item['comptype'] == '<'):
-                tmp_result_array = tmp_team_a_list.filter(away_team_spread__lt=Decimal(item['value']))
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread__lt=threshold)
             elif(item['comptype'] == '>'):
-                tmp_result_array = tmp_team_a_list.filter(away_team_spread__gt=Decimal(item['value']))
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread__gt=threshold)
         else:
             print 'using just home'
             if(item['comptype'] == '='):
-                tmp_result_array = tmp_team_a_list.filter(away_team_spread=-1*Decimal(item['value']))
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread=-1*threshold)
             elif(item['comptype'] == '<'):
-                tmp_result_array = tmp_team_a_list.filter(away_team_spread__gt=-1*Decimal(item['value']))
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread__gt=-1*threshold)
             elif(item['comptype'] == '>'):
-                tmp_result_array = tmp_team_a_list.filter(away_team_spread__lt=-1*Decimal(item['value']))
+                tmp_result_array = tmp_team_a_list.filter(away_team_spread__lt=-1*threshold)
        
         print 'gather comparrison arrays to determine team_a_dict'
         #gather the results where the away team satisfies 
         if(item['comptype'] == '='):
-            tmp_result_array_away = tmp_team_a_list.filter(away_team_spread=Decimal(item['value']))
+            tmp_result_array_away = tmp_team_a_list.filter(away_team_spread=threshold)
         elif(item['comptype'] == '<'):
-            tmp_result_array_away = tmp_team_a_list.filter(away_team_spread__lt=Decimal(item['value']))
+            tmp_result_array_away = tmp_team_a_list.filter(away_team_spread__lt=threshold)
         elif(item['comptype'] == '>'):
-            tmp_result_array_away = tmp_team_a_list.filter(away_team_spread__gt=Decimal(item['value']))
+            tmp_result_array_away = tmp_team_a_list.filter(away_team_spread__gt=threshold)
         #gather the results where the home team satisfies 
         if(item['comptype'] == '='):
-            tmp_result_array_home = tmp_team_a_list.filter(away_team_spread=-1*Decimal(item['value']))
+            tmp_result_array_home = tmp_team_a_list.filter(away_team_spread=-1*threshold)
         elif(item['comptype'] == '<'):
-            tmp_result_array_home = tmp_team_a_list.filter(away_team_spread__gt=-1*Decimal(item['value']))
+            tmp_result_array_home = tmp_team_a_list.filter(away_team_spread__gt=-1*threshold)
         elif(item['comptype'] == '>'):
-            tmp_result_array_home = tmp_team_a_list.filter(away_team_spread__lt=-1*Decimal(item['value']))
+            tmp_result_array_home = tmp_team_a_list.filter(away_team_spread__lt=-1*threshold)
         #iterate over team a dict, determine which team is team a, and if a game was included where satisfying team is not team a, exclude them
         print 'generate exclusion_list'
         exclusion_pk_list = []
@@ -602,12 +603,9 @@ class QueryTracker:
                     self.team_a_dict[game_pk] = game.home_team
                 else:
                      exclusion_pk_list.append(game_pk)
-        #testing exclude
         print 'exclusion_list computed.  length = %d'%(len(exclusion_pk_list))
         if(exclusion_pk_list != []):
-            for key in exclusion_pk_list:
-                tmp_result_array = tmp_result_array.exclude(gameid=key)
-            self.result_array = tmp_result_array
+            self.result_array = tmp_result_array.exclude(gameid__in=exclusion_pk_list)
         else:
             self.result_array = tmp_result_array
         print 'spread conditions computed.  length = %d'%(self.result_array.count())
@@ -643,8 +641,7 @@ class QueryTracker:
                      (not result_array_home.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.home_team):
                        print 'adding to exclusion list'
                        exclusion_list.append(game.pk)
-          for gameid in exclusion_list:
-              self.result_array = self.result_array.exclude(gameid=gameid) 
+          self.result_array = self.result_array.exclude(gameid__in=exclusion_list)
           print 'result_array count = %d'%self.result_array.count()
               
         elif(self.use_away_team):
@@ -700,8 +697,7 @@ class QueryTracker:
                              (not self.result_array_home.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.away_team):
                               print 'adding to exclusion list'
                               exclusion_list.append(game.pk)
-                  for gameid in exclusion_list:
-                      self.result_array = self.result_array.exclude(gameid=gameid) 
+                  self.result_array = self.result_array.exclude(gameid__in=exclusion_list)
                   for game in self.result_array:
                       if(not self.team_a_dict.has_key(game.pk)):
                           if(self.result_array_away.filter(gameid=game.pk).exists()):
@@ -764,8 +760,7 @@ class QueryTracker:
                        (not result_array_home.filter(gameid=game.pk).exists()) and self.team_a_dict[game.pk] == game.home_team):
                          print 'adding to exclusion list'
                          exclusion_list.append(game.pk)
-            for gameid in exclusion_list:
-                self.result_array = self.result_array.exclude(gameid=gameid) 
+            self.result_array = self.result_array.exclude(gameid__in=exclusion_list)
             print 'result_array count = %d'%self.result_array.count()
               
         elif(self.use_away_team):
@@ -826,8 +821,7 @@ class QueryTracker:
                              print 'adding to exclusion list'
                              exclusion_list.append(game.pk)
                 #print 'self.result_array_team_b count = %d'%self.result_array.count()
-                for gameid in exclusion_list:
-                    self.result_array = self.result_array.exclude(gameid=gameid) 
+                self.result_array = self.result_array.exclude(gameid__in=exclusion_list)
                 #print 'self.result_array_team_b count = %d'%self.result_array.count()
                 for game in self.result_array:
                     if(not self.team_a_dict.has_key(game.pk)):
