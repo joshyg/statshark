@@ -206,14 +206,9 @@ tabs are from: http://css-tricks.com/functional-css-tabs-revisited/
 
 <div class="tabbable"> <!-- Only required for left/right tabs -->
   <ul class="nav nav-tabs" id="myTab" data-tabs="tabs">
-    <!--
-    <li class="active"><a href="#summary" data-toggle="tab" onclick="setdisplay(1)">Summary</a></li>
-    <li><a href="#player_results" data-toggle="tab" onclick="setdisplay(2)">Player Data</a></li>
-    <li><a href="#game_results" data-toggle="tab" onclick="setdisplay(3)">Game Data</a></li>
--->
-    <li class="active"><a href="#summary" data-toggle="tab" onclick="setdisplay(1)">Summary</a></li>
-    <li><a href="#player_results" data-toggle="tab" onclick="setdisplay(2)" >Player Data</a></li>
-    <li><a href="#game_results" data-toggle="tab" onclick="setdisplay(3)">Game Data</a></li>
+    <li class="active" id="summary_li"><a href="#summary" id="summary_link" data-toggle="tab" onclick="setdisplay(1)">Summary</a></li>
+    <li id="player_results_li"><a href="#player_results" id="player_result_link" data-toggle="tab"  onclick="setdisplay(2)" >Player Data</a></li>
+    <li id="game_results_li"><a href="#game_results" id="game_result_link" data-toggle="tab"  onclick="setdisplay(3)">Game Data</a></li>
   </ul>
   <div class="tab-content">
     <div class="tab-pane active" id="summary">

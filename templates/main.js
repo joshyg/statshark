@@ -560,6 +560,9 @@ function ajax_submit(){
         document.getElementById('game_results').innerHTML = game_string;
         document.getElementById('summary').innerHTML = summary_string;
         document.getElementById('player_results').innerHTML = player_string;
+        $(summary_li).addClass('active');
+        $(player_results_li).removeClass('active');
+        $(game_results_li).removeClass('active');
       }
     }
     //submit response function not sure what the true parameter is all about
