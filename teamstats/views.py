@@ -2,7 +2,7 @@
 from django.shortcuts import render_to_response, get_object_or_404
 from django.template import RequestContext
 from django.core.context_processors import csrf
-from teamstats.models import Games,Players,GamePlayers,QbGameStats,RbWrGameStats,Coaches,DefGameStats,GameExtras,GameStreaks
+from teamstats.models import *
 import json
 from django.http import HttpResponse
 from decimal import Decimal
@@ -605,10 +605,10 @@ class QueryTracker:
                      exclusion_pk_list.append(game_pk)
         print 'exclusion_list computed.  length = %d'%(len(exclusion_pk_list))
         if(exclusion_pk_list != []):
-            self.result_array = tmp_result_array.exclude(gameid__in=exclusion_pk_list)
+            self.result_array = self.exclude_games( tmp_result_array, exclusion_pk_list )
         else:
             self.result_array = tmp_result_array
-        print 'spread conditions computed.  length = %d'%(self.result_array.count())
+        print 'spread conditions computed.'
     
     def filter_by_win_percentage( self, item ):
         print "about to compute WinPercentage conditions"
@@ -994,11 +994,15 @@ class QueryTracker:
             count = 0
             tmp_exclusion_list = []
             for i in exclusion_list:
-                count = (count + 1)%500
+                count = (count + 1)%50
                 tmp_exclusion_list.append(i)
                 if(count == 0):
-                    tmp = game_list.exclude(gameid__in=tmp_exclusion_list)
+                    game_list = game_list.exclude(gameid__in=tmp_exclusion_list)
                     tmp_exclusion_list = []
+                    # force the query to be evaluated.  Attempt to prevent too many SQL variables error
+                    for item in game_list.all():
+                        pass
+                    print 'game list size = %d' % ( len(game_list) )
             game_list = game_list.exclude(gameid__in=tmp_exclusion_list)
         return game_list
 
@@ -1016,12 +1020,12 @@ class QueryTracker:
             self.player_game_list = []
             tmp_result_array = []
         exclusion_list = []
-        ##performance experiment, not required for functionality
+        # The following is done to get around sqlite 'too many SQL variables bug
+        # It prevents having very large exclude queries, which seems to lead to the bug.
         player_game_pk_list = []
         for gm in self.player_game_list:
             player_game_pk_list.append(gm.pk)
         tmp_result_array = tmp_result_array.filter(pk__in=player_game_pk_list)
-        ##end of experiment
         for game in tmp_result_array:
             #cond 1: player played in game
             if(self.player_game_list.filter(pk=game.pk).exists()):
@@ -1545,9 +1549,11 @@ def submit(request):
   #them to be analyzed 
   query_tracker.final_result_array = []
   final_result_date_array = []
-  for i in range(6):
+  num_buckets = 7
+  bucket_size = 24/num_buckets
+  for i in range(num_buckets):
     ( query_tracker.use_home_team, query_tracker.use_away_team ) = get_home_away_conditions( query_tracker.team_a_conditions, query_tracker.team_b_conditions )
-    query_tracker.gameset = query_tracker.games_def.filter(week__in=range(4*i+1,4*i+5))
+    query_tracker.gameset = query_tracker.games_def.filter(week__in=range( bucket_size*i+1, bucket_size*i+1+bucket_size ))
     if(query_tracker.gameset.exists()):
       query_tracker.result_array = query_tracker.gameset
       query_tracker.team_a_conditions_exist = False
