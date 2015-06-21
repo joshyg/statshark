@@ -5,13 +5,13 @@ Develop data driven NFL wagering strategies
 
 ##Elevator Pitch
 
-*Do you wager on NFL games?
+* Do you wager on NFL games?
 
-*Have you ever wondered if the underdog typically beats the spread in the wild card round?
+* Have you ever wondered if the underdog typically beats the spread in the wild card round?
 
-*Have you pondered whether Minnesota Vikings home games typically beat the over under in December?
+* Have you pondered whether Minnesota Vikings home games typically beat the over under in December?
 
-*Does your life depend on how the New England Patriots have faired against the spread, on ther road, in the last 5 years, when the temperature is > 60 degrees and the opponent is below .500?
+* Does your life depend on how the New England Patriots have faired against the spread, on ther road, in the last 5 years, when the temperature is > 60 degrees and the opponent is below .500?
 
 Then you will find this application useful, and you may even want to pull the code and modify it!
 
