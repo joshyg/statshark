@@ -19,7 +19,7 @@ Then you will find this application useful, and you may even want to pull the co
 
 The project is currently hosted here:
 
-http://statshark.joshyg.webfactional.com/
+http://statshark.joshyg.com/
 
 And the following link provides a step by step example of how the application is used to query nfl data:
 
