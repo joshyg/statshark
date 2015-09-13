@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/local/bin/python3.4
 """
 The superscript should take as an input:
 1) min date (yr + week)
@@ -20,16 +20,16 @@ all print statements should be for _argDict['debug'], stdout should not be piped
 
 It is better to duplicate work and have the script be independent than vice versa
 """
+import sys,os
+sys.path.append( '%s/../' % os.path.dirname( os.path.abspath( __file__ ) ) )
 import argparse
 import django
-import sys,os
 try:
     import urllib2 as url
 except:
     import urllib.request as url
 import re
 import subprocess
-sys.path.append( '%s/../' % os.path.dirname( os.path.abspath( __file__ ) ) )
 from myproject import settings
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "myproject.settings") 
 from django import db
@@ -37,6 +37,7 @@ from teamstats.models import *
 from django.db.models import *
 from decimal import *
 import sqlite3
+import datetime as dt
 django.setup()
 
 # 
@@ -44,9 +45,9 @@ django.setup()
 #
 
 _argDict = {}
-_argDict['minyear'] =2014
+_argDict['minyear'] =2015
 _argDict['minweek'] =1
-_argDict['maxyear'] =2014
+_argDict['maxyear'] =2015
 _argDict['maxweek'] =21
 _argDict['debug'] = False
 _argDict['seasonMode'] = 'regularseason' # certain links follow a different format for regular/postseason
@@ -954,6 +955,10 @@ def updateGameTable():
         yr = int(str(gameid)[0:4])
         month = int(str(gameid)[4:6])
         date = int(str(gameid)[6:8])
+        # regardless of maxweek given, if the game is after today, move on
+        # Note that I may want to change this in future to get immediate updates.
+        if ( dt.date.today() <= dt.date(yr,month,date) ):
+            continue
         fulldate = '%s-%s-%s'%(yr,month,date)
         gameEntry.date = fulldate
         if ( month > 6 ):
