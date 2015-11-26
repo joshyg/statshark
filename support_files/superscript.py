@@ -630,10 +630,10 @@ def getBetDataFromProFootballReference(gameid, week, home, away):
                             ( ( week <= 17 and gameIndex <= 15 ) or ( week > 17 and gameIndex > 15 ) ) ):
                             if( _argDict['debug'] ):
                                 print( 'game found, hometeam = %s'%home )
-                            Found = True
+                            found = True
                             break
                     gameIndex += 1
-                if ( not Found ):
+                if ( not found ):
                     continue
                 # Grab spreads
                 spreadArray = spreads.split('</td>')
@@ -773,6 +773,7 @@ def getGameDataDict():
         try:
             (spread, over_under) = getBetData(game['gameid'],  game['year'], game['week'], game['home_team'],  game['away_team'] )
         except:
+            print( "getBetData failed" )
             continue
         _gameDataDict[game['gameid']]['away_team_spread'] = spread
         _gameDataDict[game['gameid']]['over_under'] = over_under
