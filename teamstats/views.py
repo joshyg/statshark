@@ -1518,11 +1518,6 @@ def about(request={}):
     return response
 
 def submit(request):
-  print ("num team a conditions was %d num team b conditions was %d num game conditions was %d"%
-          (int(get_request_param(request,'num_team_a_conditions', 0)),
-           int(get_request_param(request,'num_team_b_conditions',0)),
-           int(get_request_param(request,'num_game_conditions',0)))
-        )
   query_tracker = QueryTracker()
   query_tracker.num_team_a_conditions = int(get_request_param(request,'num_team_a_conditions',0))
   query_tracker.num_team_b_conditions = int(get_request_param(request,'num_team_b_conditions',0))
@@ -1546,7 +1541,7 @@ def submit(request):
   # Now that we've filtered home vs away  we can query based on other conditions
   # The first conditions should be those that dont add/subtract to teama list such 
   # as year, week, etc.  These are simpler and in most use cases  they will severely
-  # reduce the data set.  For the life of me i dont know why, but for certain queries 
+  # reduce the data set.  Due to sqlite's  'too many SQL variables' bug
   # the exclude function will fail if the number of chains is too hi.  My add hoc 
   # solution is to initially split the data set into 4 (based on weeks) and then sum 
   # the querySets before we send them to be analyzed. 
