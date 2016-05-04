@@ -344,8 +344,8 @@ function ajax_submit(){
         player_string = '';
         game_string = '';
         num_sum_charts = 1;
-        //following can be used to quickly turn plotting off and on
         plotting = 1;
+
         if(parseInt(serverdata.results_exist) == 1) {
           //team summaries
           summary_string += '<ul class="nav nav-pills">';
@@ -354,9 +354,7 @@ function ajax_submit(){
           summary_string += '</ul>';
           summary_string += '<div class="tab-content">';
           summary_string += '<div class="tab-pane active" id="TeamSum">';
-          //summary_string += '<br>Team Data<br>';
           if(plotting == 1) {
-            //summary_string += '<img src=\"/static/'+serverdata.teamsumchart+'\" alt=\"\" >'
             summary_string += '<img src=\"'+STATIC_URL+serverdata.teamsumchart+'\" >'
           }
 
@@ -378,10 +376,6 @@ function ajax_submit(){
             if(plotting == 1) {
               summary_string += 'Total Yards<br>';
               summary_string += '<img src="/static/'+serverdata.qb_charts[num_sum_charts*player]+'" alt="missing chart?" >';
-              //summary_string += '<br><br>Pass Data<br>';
-              //summary_string += '<img src="/static/'+serverdata.qb_charts[2*player]+'" alt="missing chart?" >';
-              //summary_string += '<br><br>Rush Data<br>';
-              //summary_string += '<img src="/static/'+serverdata.qb_charts[2*player+1]+'\" alt=\"missing chart?\" >';
             }
             summary_string += '<table id=\"player_stats\"><thead><tr><th>Comp/Game</th><th>Att/Game</th><th>Yds/Game</th><th>TD/Game</th><th>Rating</th></tr></thead>';
             summary_string += '<tr>';
@@ -397,10 +391,6 @@ function ajax_submit(){
             if(plotting == 1) {
               summary_string += 'Total Yards<br>';
               summary_string += '<img src="/static/'+serverdata.rbwr_charts[num_sum_charts*player]+'" alt="missing chart?" >';
-              //summary_string += '<br>Reception Data<br>';
-              //summary_string += '<img src="/static/'+serverdata.rbwr_charts[2*player]+'" alt="missing chart?" >';
-              //summary_string += '<br><br>Rush Data<br>';
-              //summary_string += '<img src="/static/'+serverdata.rbwr_charts[2*player+1]+'" alt="missing chart?" >';
             }
             summary_string += '<table id=\"player_stats\"><thead><tr><th>RushYds/Game</th><th>Yds/Rush</th><th>RushTD/Game</th><th>RecYds</th><th>Yds/Rec</th><th>RecTD/Game</th></tr></thead>';
             summary_string += '<tr>';
@@ -420,11 +410,8 @@ function ajax_submit(){
             }
             summary_string += '</tr>';
             summary_string += '</table>';
-            //if(plotting == 1) {
-            //}
           }
           summary_string += '</div></div>';//tab-pane and tab-content
-          //document.getElementById('summary').innerHTML = summary_string;
           //Full player data
           var index = 0;
           var column_index;
@@ -442,14 +429,6 @@ function ajax_submit(){
           player_string += '</ul>';
           player_string += '<div class="tab-content">';
           player_string += '<div class="tab-pane" id="PlayerCharts">';
-          /*This chart takes too long too generate at the back end and is not very useful
-            Maybe ill replace it later with a javascript front end guy 
-          for (player in serverdata.players_with_stats) {
-                  player_string += toTitleCase(serverdata.players_with_stats[player])+': Yards/Game<br>'
-                  player_string += '<img src="/static/'+serverdata.playerdata_charts[player]+'" alt="missing chart?" >';
-                  player_string += '<br>';
-          }
-          */
           player_string += '</div>';//PlayerCharts
           player_string += '<div class="tab-pane active" id="PlayerTables">';
           if(show_full_player_table == 1) {
@@ -526,7 +505,6 @@ function ajax_submit(){
           }
           player_string += '</div>';//playertables
           player_string += '</div>';
-          //document.getElementById('player_results').innerHTML = player_string;
           
           game_string += '<table id=\"gradient-style\"><thead><tr><th>Year</th><th>Week</th><th>Away</th><th>Score</th><th>Home</th><th>Score</th><th>Spread</th><th>Over/Under</th><th>Team A</th></tr></thead>';
           var row_index = 0;
@@ -564,8 +542,8 @@ function ajax_submit(){
         $(player_results_li).removeClass('active');
         $(game_results_li).removeClass('active');
       }
-    }
-    //submit response function not sure what the true parameter is all about
+    } // end of response func
+
     var i = 0;
     var str = 'num_team_a_conditions='+(condition_number_a+1)+'&num_team_b_conditions='+(condition_number_b+1)+'&num_game_conditions='+(condition_number_g+1)+'&';
     while(i < condition_number_a+1) {

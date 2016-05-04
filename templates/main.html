@@ -167,45 +167,6 @@ I think this is less confusing
 <a href="javascript:void(0);" style="none" onclick="ShowMainForm()"/>Edit Conditions</a>
 </div>
 
-<!--
-tabs are from: http://css-tricks.com/functional-css-tabs-revisited/
--->
-<!--
-<div class="tabs" id=tabs>
-   <div class="tab">
-       <input type="radio" id="tab-1" name="tab-group-1" checked onclick="setdisplay(1)">
-       <label for="tab-1">Summary</label>
-       <div class="content" id='summary'>
-       </div> 
-   </div>
-   <div class="tab">
-       <input type="radio" id="tab-2" name="tab-group-1" onclick="setdisplay(2)">
-       <label for="tab-2">Player Data</label>
-       <div class="content"id='player_results'>
-       </div> 
-   </div>
-    <div class="tab">
-       <input type="radio" id="tab-3" name="tab-group-1" onclick="setdisplay(3)">
-       <label for="tab-3">Game Data</label>
-       <div class="content" id='game_results'>
-       </div> 
-   </div>
-</div>
-<ul class="nav nav-tabs">
-  <li class="active">
-    <a href="#"  onclick="setdisplay(1)">Summary</a>
-  </li>
-  <li><a href="#"  onclick="setdisplay(2)">Player Data</a></li>
-  <li><a href="#"  onclick="setdisplay(3)">Game Data</a></li>
-</ul>
-<div id='summary'>
-</div> 
-<div id='player_results'>
-</div> 
-<div id='game_results'>
-</div> 
--->
-
 <div class="tabbable"> <!-- Only required for left/right tabs -->
   <ul class="nav nav-tabs" id="myTab" data-tabs="tabs">
     <li class="active" id="summary_li"><a href="#summary" id="summary_link" data-toggle="tab" onclick="setdisplay(1)">Summary</a></li>
@@ -221,30 +182,6 @@ tabs are from: http://css-tricks.com/functional-css-tabs-revisited/
     </div>
   </div>
 </div>
- <!--
-<script type="text/javascript">
-    jQuery(document).ready(function ($) {
-        $('#myTab').tab();
-    });
-</script>
-<script>
-
-$('#myTab a').click(function (e) {
-  e.preventDefault();
-  $(this).tab('show');
-})
-
-  $(function () {
-    $('#myTab a:[href="#summary"]').tab('show');
-  })
-  $(function () {
-    $('#myTab a:[href="#player_results"]').tab('show');
-  })
-  $(function () {
-    $('#myTab a:[href="#game_results"]').tab('show');
-  })
-</script>
--->
 <script src="{{STATIC_URL}}bootstrap.min.js"></script>
 
 <!--
