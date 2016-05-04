@@ -287,9 +287,9 @@ class QueryTracker:
         }
       
 
-    def query_wrapper( self, list, item_type, **kwargs ):
+    def query_wrapper( self, condition_list, item_type, **kwargs ):
         print( "check for %s conditions" % item_type )
-        for entry in list:
+        for entry in condition_list:
             if( entry['type'] in [ item_type, item_type.replace('opposition_', '') ] ):
                 self.filter_dict[item_type]( entry, **kwargs )
 
