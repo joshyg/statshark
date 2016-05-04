@@ -23,7 +23,7 @@ http://statshark.joshyg.com/
 
 And the following link provides a step by step example of how the application is used to query nfl data:
 
-http://statshark.joshyg.webfactional.com/about/
+http://statshark.joshyg.com/about/
 
 The data is primarily combed from nfl.com and http://www.pro-football-reference.com/. I used a few other sources for the spread data.
 
