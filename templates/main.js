@@ -1,6 +1,6 @@
 var positions = [
   'C','CB','DB','DE','DL','DT','FB','FS','G','ILB','K','LB','LS','MLB','NT','OG','OL','OLB','OT','P','QB','RB','SAF','SS','T','TE','WR'
-  ];
+];
 var teams = [
   "Arizona",  "Atlanta",  "Baltimore",  "Buffalo",  "Carolina",  "Chicago",  "Cincinnati",  "Cleveland",  "Dallas",  "Denver",  "Detroit",
   "Green Bay",  "Houston",  "Indianapolis",  "Jacksonville",  "Kansas City",  "Miami",  "Minnesota",  "New England",  "New Orleans",  "NY Giants",
@@ -14,8 +14,7 @@ var teams = [
   "Phoenix Cardinals",
   "Baltimore Colts"
 ];
-function toTitleCase(str)
-{
+function toTitleCase(str) {
     return str.replace(/\w\S*/g, function(txt){return txt.charAt(0).toUpperCase() + txt.substr(1).toLowerCase();});
 }
 function get_week(season,week) {
@@ -77,7 +76,7 @@ function setdisplay(tab) {
   }
 }
  
-function GetSelectValue(sel){
+function GetSelectValue(sel) {
   var val = sel.options[sel.selectedIndex].value;
   if(val == 1) {
     DisplayConfList(sel.name);
@@ -157,7 +156,6 @@ function DisplayWeekComp(table,compval) {
   document.getElementById("conditions_"+table+"_far_right").innerHTML = str;
 }
 
-
 function DisplayConfList(table) {
   str = "<select name=\""+table+"_value\">";
   str += "<option value=0>AFC</option>";
@@ -175,6 +173,7 @@ function DisplayConfList(table) {
   document.getElementById("conditions_"+table+"_right").innerHTML = str;
   document.getElementById("conditions_"+table+"_far_right").innerHTML = "";
 }
+
 function DisplayFieldType(table) {
   str = "<select name=\""+table+"_value\">";
   str += "<option value=0>Grass</option>";
@@ -184,12 +183,14 @@ function DisplayFieldType(table) {
   document.getElementById("conditions_"+table+"_right").innerHTML = str;
   document.getElementById("conditions_"+table+"_far_right").innerHTML = "";
 }
+
 //Following function just erases right and far_right fields
 function DisplayHomeAway(table) {
   document.getElementById("conditions_"+table+"_right").innerHTML = "";
   document.getElementById("conditions_"+table+"_far_right").innerHTML = "";
 
 }
+
 function DisplayTeamList(table) {
   str = "<select name=\""+table+"_value\">";
   str += "<option value=0>Arizona</option>";
@@ -228,6 +229,7 @@ function DisplayTeamList(table) {
   document.getElementById("conditions_"+table+"_right").innerHTML = str;
   document.getElementById("conditions_"+table+"_far_right").innerHTML = '';
 }
+
 var condition_number_a = 0;
 var condition_number_b = 0;
 var condition_number_g = 0;
