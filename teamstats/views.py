@@ -1518,134 +1518,134 @@ def about(request={}):
     return response
 
 def submit(request):
-  query_tracker = QueryTracker()
-  query_tracker.num_team_a_conditions = int(get_request_param(request,'num_team_a_conditions',0))
-  query_tracker.num_team_b_conditions = int(get_request_param(request,'num_team_b_conditions',0))
-  query_tracker.num_game_conditions = int(get_request_param(request,'num_game_conditions',0))
-  query_tracker.queried_players = []
-
-  query_tracker.get_conditions( request )
-
-  #determine defer fields based on conditions
-  defer_fields = get_defer_fields(query_tracker.team_a_conditions, query_tracker.team_b_conditions)
-  query_tracker.games_def = Games.objects.all()
-  for param in defer_fields:
-      query_tracker.games_def = query_tracker.games_def.defer(param) 
-
-  print "after deferment, team a conditions are:"
-  for item in query_tracker.team_a_conditions:
-      print item 
-
-  query_tracker.init_team_a_dict()
-
-  # Now that we've filtered home vs away  we can query based on other conditions
-  # The first conditions should be those that dont add/subtract to teama list such 
-  # as year, week, etc.  These are simpler and in most use cases  they will severely
-  # reduce the data set.  Due to sqlite's  'too many SQL variables' bug
-  # the exclude function will fail if the number of chains is too hi.  My add hoc 
-  # solution is to initially split the data set into 4 (based on weeks) and then sum 
-  # the querySets before we send them to be analyzed. 
-  query_tracker.final_result_array = []
-  final_result_date_array = []
-  num_buckets = 7
-  bucket_size = 24/num_buckets
-  for i in range(num_buckets):
-    ( query_tracker.use_home_team, query_tracker.use_away_team ) = get_home_away_conditions( query_tracker.team_a_conditions, query_tracker.team_b_conditions )
-    query_tracker.gameset = query_tracker.games_def.filter(week__in=range( bucket_size*i+1, bucket_size*i+1+bucket_size ))
-    if(query_tracker.gameset.exists()):
-      query_tracker.result_array = query_tracker.gameset
-      query_tracker.team_a_conditions_exist = False
-      # the following lists the "team_a" teams.  It will be used later in team b logic
-      query_tracker.team_a_list = []
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "season" )
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "week" )
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "fieldtype" )
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "temperature" )
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "wind" )
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "humidity" )
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "over_under" )
+    query_tracker = QueryTracker()
+    query_tracker.num_team_a_conditions = int(get_request_param(request,'num_team_a_conditions',0))
+    query_tracker.num_team_b_conditions = int(get_request_param(request,'num_team_b_conditions',0))
+    query_tracker.num_game_conditions = int(get_request_param(request,'num_game_conditions',0))
+    query_tracker.queried_players = []
+  
+    query_tracker.get_conditions( request )
+  
+    #determine defer fields based on conditions
+    defer_fields = get_defer_fields(query_tracker.team_a_conditions, query_tracker.team_b_conditions)
+    query_tracker.games_def = Games.objects.all()
+    for param in defer_fields:
+        query_tracker.games_def = query_tracker.games_def.defer(param) 
+  
+    print "after deferment, team a conditions are:"
+    for item in query_tracker.team_a_conditions:
+        print item 
+  
+    query_tracker.init_team_a_dict()
+  
+    # Now that we've filtered home vs away  we can query based on other conditions
+    # The first conditions should be those that dont add/subtract to teama list such 
+    # as year, week, etc.  These are simpler and in most use cases  they will severely
+    # reduce the data set.  Due to sqlite's  'too many SQL variables' bug
+    # the exclude function will fail if the number of chains is too hi.  My add hoc 
+    # solution is to initially split the data set into 4 (based on weeks) and then sum 
+    # the querySets before we send them to be analyzed. 
+    query_tracker.final_result_array = []
+    final_result_date_array = []
+    num_buckets = 7
+    bucket_size = 24/num_buckets
+    for i in range(num_buckets):
+        ( query_tracker.use_home_team, query_tracker.use_away_team ) = get_home_away_conditions( query_tracker.team_a_conditions, query_tracker.team_b_conditions )
+        query_tracker.gameset = query_tracker.games_def.filter(week__in=range( bucket_size*i+1, bucket_size*i+1+bucket_size ))
+        if(query_tracker.gameset.exists()):
+            query_tracker.result_array = query_tracker.gameset
+            query_tracker.team_a_conditions_exist = False
+            # the following lists the "team_a" teams.  It will be used later in team b logic
+            query_tracker.team_a_list = []
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "season" )
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "week" )
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "fieldtype" )
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "temperature" )
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "wind" )
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "humidity" )
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "over_under" )
+            
+            # beginning of conditions that effect team_a_dict
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "group" )
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "team" )
       
-      # beginning of conditions that effect team_a_dict
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "group" )
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "team" )
-
-      # we do spread calculations after we have done all team/group filtering
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "favoredBy" )
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "underdogOf" )
-    
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "WinPercentage" )
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "WinStrak" )
-
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "coach" )
-
-      # Ideally  want to do player queries last, as they are most computationally involved
-      # and so perf will benefit from smaller data set
-      query_tracker.query_wrapper( query_tracker.team_a_conditions, "player", team="a" )
-    
-      # uniquify a before its passed to b 
-      if(query_tracker.result_array != []):
-          query_tracker.result_array = query_tracker.result_array.distinct()
-          print "uniquified team a query_tracker.results, num query_tracker.results = %d"%query_tracker.result_array.count() 
-
-      # two things can lead to a 0 length array at this point:
-      # one is no conditions yet.  The other is we already have no matches
-      if(not query_tracker.team_a_conditions_exist):
-        query_tracker.result_array = query_tracker.gameset 
+            # we do spread calculations after we have done all team/group filtering
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "favoredBy" )
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "underdogOf" )
+          
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "WinPercentage" )
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "WinStrak" )
       
-      print 'beginning of team b conditions'
-      # For team b, we will further limit what we obtained from team a conditions
-      # note that while team a conditions are required, team b conditions are not
-      # if no team b conditions, the results are the team a results 
-      # Lets first see if team b is restricted to home or away
-      query_tracker.team_b_conditions_exist = False
-      ( query_tracker.use_home_team, query_tracker.use_away_team ) = get_home_away_conditions( query_tracker.team_b_conditions, query_tracker.team_a_conditions )
-
-      # Now that we've done that we can query based on other conditions
-      # remember that this time we are querying team a results
-      print 'searching for team b group conditions'
-      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_group" )
-      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_team" )
-      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_WinPercentage" )
-      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_WinStrak" )
-      query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_coach" )
-
-      # Ideally  want to do player queries last, as they are most computationally
-      # involved and so perf will benefit from smaller data set
-      query_tracker.query_wrapper( query_tracker.team_b_conditions, "player", team="b" )
-      print 'done searching for team b conditions'
-
-      # end of parsing team b conditions
-      if(not query_tracker.team_b_conditions_exist):
-          print "no team b conditions!"
-      elif(query_tracker.result_array != []):
-          print 'begin final uniquification'
-          query_tracker.result_array = query_tracker.result_array.distinct()
-          print "after final uniquification, length of result array is %d"%(query_tracker.result_array.count())
-      for i in query_tracker.result_array:
-          final_result_date_array.append({'pk':i.pk, 'year':i.date.year})
-
-  print 'beginning of post collection calculations'
-  # data collected, now calculate winnings/team data
-  # put total results back in result array.
-  final_result_date_array = count_sort(final_result_date_array)
-  for item in final_result_date_array:
-      query_tracker.final_result_array.append(item['pk'])
-
-  query_tracker.get_game_data()
-  query_tracker.get_summary_hist()
-  #gather player data
-  query_tracker.get_player_data()
-
-  if(len(query_tracker.final_result_array) > 0):
-      query_tracker.response['results_exist'] = 1
-  else:
-      query_tracker.response['results_exist'] = 0
-
-  print 'Converting to json'
-  json_str = json.dumps(query_tracker.response)
-  if ( sys.version_info > (2, 7) ):
-      return HttpResponse(json_str, content_type='application/json')
-  else:
-      return HttpResponse(json_str, mimetype='application/json')
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "coach" )
+      
+            # Ideally  want to do player queries last, as they are most computationally involved
+            # and so perf will benefit from smaller data set
+            query_tracker.query_wrapper( query_tracker.team_a_conditions, "player", team="a" )
+          
+            # uniquify a before its passed to b 
+            if(query_tracker.result_array != []):
+                query_tracker.result_array = query_tracker.result_array.distinct()
+                print "uniquified team a query_tracker.results, num query_tracker.results = %d"%query_tracker.result_array.count() 
+      
+            # two things can lead to a 0 length array at this point:
+            # one is no conditions yet.  The other is we already have no matches
+            if(not query_tracker.team_a_conditions_exist):
+              query_tracker.result_array = query_tracker.gameset 
+            
+            print 'beginning of team b conditions'
+            # For team b, we will further limit what we obtained from team a conditions
+            # note that while team a conditions are required, team b conditions are not
+            # if no team b conditions, the results are the team a results 
+            # Lets first see if team b is restricted to home or away
+            query_tracker.team_b_conditions_exist = False
+            ( query_tracker.use_home_team, query_tracker.use_away_team ) = get_home_away_conditions( query_tracker.team_b_conditions, query_tracker.team_a_conditions )
+      
+            # Now that we've done that we can query based on other conditions
+            # remember that this time we are querying team a results
+            print 'searching for team b group conditions'
+            query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_group" )
+            query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_team" )
+            query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_WinPercentage" )
+            query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_WinStrak" )
+            query_tracker.query_wrapper( query_tracker.team_b_conditions, "opposition_coach" )
+      
+            # Ideally  want to do player queries last, as they are most computationally
+            # involved and so perf will benefit from smaller data set
+            query_tracker.query_wrapper( query_tracker.team_b_conditions, "player", team="b" )
+            print 'done searching for team b conditions'
+      
+            # end of parsing team b conditions
+            if(not query_tracker.team_b_conditions_exist):
+                print "no team b conditions!"
+            elif(query_tracker.result_array != []):
+                print 'begin final uniquification'
+                query_tracker.result_array = query_tracker.result_array.distinct()
+                print "after final uniquification, length of result array is %d"%(query_tracker.result_array.count())
+            for i in query_tracker.result_array:
+                final_result_date_array.append({'pk':i.pk, 'year':i.date.year})
+  
+    print 'beginning of post collection calculations'
+    # data collected, now calculate winnings/team data
+    # put total results back in result array.
+    final_result_date_array = count_sort(final_result_date_array)
+    for item in final_result_date_array:
+        query_tracker.final_result_array.append(item['pk'])
+  
+    query_tracker.get_game_data()
+    query_tracker.get_summary_hist()
+    #gather player data
+    query_tracker.get_player_data()
+  
+    if(len(query_tracker.final_result_array) > 0):
+        query_tracker.response['results_exist'] = 1
+    else:
+        query_tracker.response['results_exist'] = 0
+  
+    print 'Converting to json'
+    json_str = json.dumps(query_tracker.response)
+    if ( sys.version_info > (2, 7) ):
+        return HttpResponse(json_str, content_type='application/json')
+    else:
+        return HttpResponse(json_str, mimetype='application/json')
 
 
